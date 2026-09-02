@@ -22,7 +22,8 @@ out/
 .terraform/
 *.tfstate
 *.tfstate.*
-.terraform.lock.hcl
+# .terraform.lock.hcl is intentionally NOT ignored — commit it so
+# `terraform init` picks the same provider versions everywhere.
 
 # Editors
 .vscode/
