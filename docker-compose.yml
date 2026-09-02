@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-polst_cs}
+      POSTGRES_USER: ${POSTGRES_USER:-polst_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localdev}
+    ports:
+      # Host side is 5433, not 5432 — avoids clashing with a native/local
+      # Postgres install that might already be using the default port.
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - polst_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-polst_app} -d ${POSTGRES_DB:-polst_cs}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  polst_pg_data:
