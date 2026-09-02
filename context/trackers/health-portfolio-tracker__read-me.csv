@@ -1,0 +1,25 @@
+,Polst — Customer Health & Portfolio Tracker,
+,Version 0.1 · Companion to the CS Foundations Pack (docs 00–06),
+,COLOUR LEGEND,
+,Blue text,You type here. These are inputs.
+,Black text,Calculated. Do not overwrite — you will break the score.
+,Green text,Pulled from another tab in this workbook.
+,Yellow fill,A setting or assumption you should review before trusting the output.
+,THE TABS,
+,Config,"Weights, thresholds and score bands from doc 02. Change the model here, never in the Portfolio formulas. Every weight and cut-off in this workbook is a hypothesis — see doc 02 §7 for how to calibrate them."
+,Portfolio,"One row per account. Blue columns are your inputs; the grey block on the right computes the health score, the override cap, and the band."
+,Volume Trend,"Monthly campaign counts per account. This is the input surface for volume — the Portfolio tab reads the 90-day figures from here, so you only enter campaign counts once."
+,HOW TO USE IT,
+,1. Set up,"On Volume Trend, replace the example accounts with your own and update the month headers. Account names must match EXACTLY between the two tabs — the lookup is by name."
+,2. Enter volume,"Fill in monthly campaign counts. If you only have a quarterly export, put the quarter total in the last month of that quarter and note it."
+,3. Fill the Portfolio inputs,Work left to right through the blue columns. Anything you cannot fill in is itself a finding — an unknown economic buyer or an unmapped department is exactly what doc 05 is designed to surface.
+,4. Read the right-hand block,Final Score is the composite AFTER any override cap is applied. A capped account shows a band worse than its raw composite — that is intentional (doc 02 §3).
+,5. Review on cadence,"Weekly for At risk/Critical, monthly for the whole portfolio. Quarterly, re-check the weights against what actually happened."
+,READ THIS BEFORE TRUSTING THE SCORE,
+,It is a conversation starter,The score's job is to make you look at the right accounts in the right order. It is not evidence. The account plan (doc 05) is the evidence.
+,Two dimensions are manual,Value Realisation and Relationship Coverage are only as current as your last update. They decay silently and will quietly inflate scores if you let them go stale.
+,Overrides exist for a reason,"A high-volume account with no exec sponsor and a departing champion is not healthy, however good the volume looks. The caps encode that."
+,Seasonality is not handled,"The volume ratio compares the last 90 days to the prior 90 days. If Polst customers have budget-cycle or calendar seasonality, this will generate systematic false alarms every year at the same time. Check this early — see doc 02 §8."
+,Small accounts are noisy,An account running 3 campaigns a quarter swings between bands on a single campaign. Consider a minimum volume floor below which you review manually instead.
+,EXAMPLE ROWS,
+,Three examples included,"Rows 5-7 on both data tabs are illustrative and shaded grey. Delete them before real use. They show the expected format and three different failure shapes: Barrow Logistics is a healthy growth account, Northfield Health is decaying with no exec sponsor, and Cranmere Council has effectively gone dark."

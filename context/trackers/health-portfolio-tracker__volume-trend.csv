@@ -1,0 +1,22 @@
+Monthly Campaign Volume by Account,,,,,,,,,,,,,,,
+Enter campaign counts per month. The Portfolio tab reads columns N and O from here — account names must match exactly.,,,,,,,,,,,,,,,
+Account,Sep 2025,Oct 2025,Nov 2025,Dec 2025,Jan 2026,Feb 2026,Mar 2026,Apr 2026,May 2026,Jun 2026,Jul 2026,Aug 2026,Last 3 mo,Prior 3 mo,Ratio
+,,,,,,,,,,,,,"=IF($A5="""","""",SUM(K5:M5))","=IF($A5="""","""",SUM(H5:J5))","=IF($A5="""","""",IFERROR(N5/O5,""""))"
+,,,,,,,,,,,,,"=IF($A6="""","""",SUM(K6:M6))","=IF($A6="""","""",SUM(H6:J6))","=IF($A6="""","""",IFERROR(N6/O6,""""))"
+,,,,,,,,,,,,,"=IF($A7="""","""",SUM(K7:M7))","=IF($A7="""","""",SUM(H7:J7))","=IF($A7="""","""",IFERROR(N7/O7,""""))"
+,,,,,,,,,,,,,"=IF($A8="""","""",SUM(K8:M8))","=IF($A8="""","""",SUM(H8:J8))","=IF($A8="""","""",IFERROR(N8/O8,""""))"
+,,,,,,,,,,,,,"=IF($A9="""","""",SUM(K9:M9))","=IF($A9="""","""",SUM(H9:J9))","=IF($A9="""","""",IFERROR(N9/O9,""""))"
+,,,,,,,,,,,,,"=IF($A10="""","""",SUM(K10:M10))","=IF($A10="""","""",SUM(H10:J10))","=IF($A10="""","""",IFERROR(N10/O10,""""))"
+,,,,,,,,,,,,,"=IF($A11="""","""",SUM(K11:M11))","=IF($A11="""","""",SUM(H11:J11))","=IF($A11="""","""",IFERROR(N11/O11,""""))"
+,,,,,,,,,,,,,"=IF($A12="""","""",SUM(K12:M12))","=IF($A12="""","""",SUM(H12:J12))","=IF($A12="""","""",IFERROR(N12/O12,""""))"
+,,,,,,,,,,,,,"=IF($A13="""","""",SUM(K13:M13))","=IF($A13="""","""",SUM(H13:J13))","=IF($A13="""","""",IFERROR(N13/O13,""""))"
+,,,,,,,,,,,,,"=IF($A14="""","""",SUM(K14:M14))","=IF($A14="""","""",SUM(H14:J14))","=IF($A14="""","""",IFERROR(N14/O14,""""))"
+,,,,,,,,,,,,,"=IF($A15="""","""",SUM(K15:M15))","=IF($A15="""","""",SUM(H15:J15))","=IF($A15="""","""",IFERROR(N15/O15,""""))"
+,,,,,,,,,,,,,"=IF($A16="""","""",SUM(K16:M16))","=IF($A16="""","""",SUM(H16:J16))","=IF($A16="""","""",IFERROR(N16/O16,""""))"
+,,,,,,,,,,,,,"=IF($A17="""","""",SUM(K17:M17))","=IF($A17="""","""",SUM(H17:J17))","=IF($A17="""","""",IFERROR(N17/O17,""""))"
+,,,,,,,,,,,,,"=IF($A18="""","""",SUM(K18:M18))","=IF($A18="""","""",SUM(H18:J18))","=IF($A18="""","""",IFERROR(N18/O18,""""))"
+,,,,,,,,,,,,,"=IF($A19="""","""",SUM(K19:M19))","=IF($A19="""","""",SUM(H19:J19))","=IF($A19="""","""",IFERROR(N19/O19,""""))"
+,,,,,,,,,,,,,"=IF($A20="""","""",SUM(K20:M20))","=IF($A20="""","""",SUM(H20:J20))","=IF($A20="""","""",IFERROR(N20/O20,""""))"
+,,,,,,,,,,,,,"=IF($A21="""","""",SUM(K21:M21))","=IF($A21="""","""",SUM(H21:J21))","=IF($A21="""","""",IFERROR(N21/O21,""""))"
+Example rows are shaded grey — delete before use.,,,,,,,,,,,,,,,
+"Assumption: ""Last 3 mo"" and ""Prior 3 mo"" are used as 90-day proxies. Adjust the SUM ranges if your reporting period differs.",,,,,,,,,,,,,,,

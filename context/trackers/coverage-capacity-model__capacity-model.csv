@@ -1,0 +1,33 @@
+CS Coverage Capacity Model,,,,,,
+Companion to doc 04 §5. Blue cells are inputs. This is the arithmetic behind the case for CSM #2.,,,,,,
+1. AVAILABLE CAPACITY,,,,,,
+Working weeks per year,46,,,,,"52 less PTO, holidays, company shutdown"
+Hours per working week,45,,,,,
+Gross hours per year,=B6*B7,,,,,
+Non-account time (%),0.35,,,,,"Internal meetings, reporting, hiring, tooling, VP-level work. Do not set this below ~30% for a VP who is also an IC."
+NET ACCOUNT-FACING HOURS PER PERSON,=B8*(1-B9),,,,,
+Number of CS people (incl. you),1,,,,,
+TOTAL AVAILABLE HOURS,=B10*B11,,,,,
+2. REQUIRED CAPACITY BY TIER,,,,,,
+Tier,Accounts,Hours per account/yr,Required hours,% of total,,Basis for the hours estimate
+T1 — Strategic,0,100,=B16*C16,"=IFERROR(D16/$D$20,0)",,"Monthly calls, quarterly EBRs, bespoke onboarding, named escalation path"
+T2 — Growth,0,25,=B17*C17,"=IFERROR(D17/$D$20,0)",,"Quarterly calls, semi-annual reviews, standard onboarding"
+T3 — Scale,0,3,=B18*C18,"=IFERROR(D18/$D$20,0)",,Automated lifecycle; human contact only on alert
+T4 — Review,0,1,=B19*C19,"=IFERROR(D19/$D$20,0)",,Automated only; below the profitable-to-serve floor
+TOTAL,=SUM(B16:B19),,=SUM(D16:D19),"=IFERROR(SUM(E16:E19),0)",,
+3. THE GAP,,,,,,
+Available hours,=B12,,,,,
+Required hours,=D20,,,,,
+Surplus / (Shortfall),=B23-B24,,,,,
+Coverage ratio (available ÷ required),"=IFERROR(B23/B24,0)",,,,,
+Additional FTE needed to close the gap,"=IF(B25>=0,0,ROUNDUP(-B25/MAX(B10,1),1))",,,,,
+"=IF(B25>=0,""Capacity is sufficient at these assumptions."",""SHORTFALL. Pick a lever below — do not absorb this through overwork."")",,,,,,
+4. THE FOUR LEVERS (model each one),,,,,,
+Lever,New value,Resulting hours,New gap,Closes it?,,Trade-off you are accepting
+A. Raise the T1 bar — fewer strategic accounts,4,=B32*C16+D17+D18+D19,=$B$12-C32,"=IF(D32>=0,""Yes"",""No"")",,Some high-potential accounts drop to pooled coverage
+B. Productise — cut hours per T1 account,70,=B16*B33+D17+D18+D19,=$B$12-C33,"=IF(D33>=0,""Yes"",""No"")",,Requires building the tech-touch assets in doc 04 §7 first
+C. Hire — total CS people,2,=D20,=$B$10*B34-C34,"=IF(D34>=0,""Yes"",""No"")",,"Cost, plus ramp time before the capacity is real"
+D. Accept lower coverage — drop T3 entirely,0,=D16+D17+B35*C18+D19,=$B$12-C35,"=IF(D35>=0,""Yes"",""No"")",,"Named, written decision that T3 is unserved"
+"Assumption: all hours-per-account figures are planning estimates set by the VP CS, not measured. Track actual time for one quarter and replace them — the hiring case is only as good as these numbers.",,,,,,
+"Benchmark for sanity-checking, not targets: high-touch CSMs commonly carry $1–2M ARR or 8–15 strategic accounts; mid-touch 20–50 accounts; tech-touch 100–500+.",,,,,,
+Example values are pre-filled to show the expected format. Replace all yellow cells with your own book.,,,,,,

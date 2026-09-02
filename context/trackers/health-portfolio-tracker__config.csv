@@ -1,0 +1,43 @@
+Scoring Configuration,,,
+Change the model here. These values feed every formula on the Portfolio tab.,,,
+DIMENSION WEIGHTS,Weight,,Note
+Volume trajectory,0.3,,90d campaigns vs prior 90d. This is the revenue line under per-campaign pricing.
+Breadth,0.2,,Departments live and creators per department. Concentration risk.
+Value realisation,0.2,,"Documented, customer-confirmed result, and its recency."
+Campaign quality,0.15,,Guardrail against pushing volume that does not repeat.
+Relationship coverage,0.1,,Catches churn causes that usage data never predicts.
+Sentiment & friction,0.05,,Noisy at low volume — deliberately small weight.
+Total (must equal 100%),=SUM(B5:B10),,
+VOLUME TRAJECTORY BANDS,Ratio ≥,Score,Note
+Band 1,1.25,100,
+Band 2,1,85,
+Band 3,0.85,65,
+Band 4,0.7,40,
+Band 5,0.5,20,
+Below all of the above,—,0,
+,,,Accounts under 180 days old: score against the onboarding plan target instead (doc 02 §5).
+VALUE REALISATION,Score,,Must match the Portfolio dropdown text exactly
+Confirmed <90d,100,,
+Confirmed <180d,70,,
+Documented not confirmed,40,,
+None,0,,
+SENTIMENT & FRICTION,Score,,Must match the Portfolio dropdown text exactly
+Clean,100,,
+Elevated,50,,
+Escalation open,0,,
+SCORE BANDS,Score ≥,,Action
+Healthy,75,,Expansion candidate — Play 4
+Watch,50,,Named intervention within 14 days
+At risk,30,,"Decay intervention — Play 2, exec visibility"
+Critical,below,,"Exec-to-exec, or plan the loss and capture the reason"
+OVERRIDE CAPS & TRIGGERS,Value,,What it does
+Cap value — Watch,74,,Score ceiling applied when a Watch-level override fires
+Cap value — At risk,49,,Score ceiling applied when an At-risk-level override fires
+Cap value — Critical,29,,Score ceiling applied when a Critical-level override fires
+Days with no campaign → At risk cap,45,,Silence is the clearest decay signal under consumption pricing
+Days with no campaign → Critical cap,90,,
+Commitment utilisation floor,0.4,,"Below this, with little term left, cap at At risk"
+Days left in term for utilisation test,90,,
+Tenure (days) before sponsor / single-creator caps apply,90,,New accounts are not penalised for still building out
+Open escalation days → At risk cap,30,,
+"Assumption: all thresholds above are unvalidated starting hypotheses set by the VP CS, not derived from Polst data. Recalibrate per doc 02 §7 after two quarters.",,,
