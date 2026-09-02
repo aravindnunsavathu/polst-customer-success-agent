@@ -106,12 +106,15 @@ def _build_common(
                 continue  # the account didn't exist yet — no campaigns before signing
             dept_campaigns.extend(
                 builder.spread_campaigns_in_month(
-                    rng, month_start, count, identity.id, department.id, creator_ids
+                    rng, month_start, count, identity.id, department.id, creator_ids, as_of
                 )
             )
-        # The month-level check above still admits days before contract_start
-        # within its own signing month — trim those precisely.
-        dept_campaigns = [c for c in dept_campaigns if c.created_at.date() >= contract_start]
+        # Belt-and-suspenders: spread_campaigns_in_month already clips the
+        # current month to elapsed days, and the loop above skips whole
+        # months before signing — this just guards the exact boundary day.
+        dept_campaigns = [
+            c for c in dept_campaigns if contract_start <= c.created_at.date() <= as_of
+        ]
 
         department.first_campaign_at = (
             min(c.created_at for c in dept_campaigns) if dept_campaigns else None
@@ -373,6 +376,7 @@ def expansion_ready(rng, faker, as_of: date, index: int) -> list:
         identity.id, faker.name(), StakeholderType.CHAMPION,
         relationship_strength=RelationshipStrength.STRONG,
         last_contact_at=datetime.combine(as_of - timedelta(days=7), time(10, 0)),
+        reference_willing=True,
     ))
     objects.append(builder.make_stakeholder(
         identity.id, faker.name(), StakeholderType.EXEC_SPONSOR,

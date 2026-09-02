@@ -11,6 +11,7 @@ services:
       - "${POSTGRES_HOST_PORT:-5433}:5432"
     volumes:
       - polst_pg_data:/var/lib/postgresql/data
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-polst_app} -d ${POSTGRES_DB:-polst_cs}"]
       interval: 5s

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.db import Base
@@ -38,6 +38,15 @@ class Stakeholder(Base, UUIDPrimaryKey, TemporalMixin, CreatedAtMixin):
     )
     departed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+    # doc 05's stakeholder coverage checklist: "champion would take a
+    # reference call" — one of the five +20-point relationship coverage
+    # checks (doc 02 §5 dimension 5). Only meaningful for CHAMPION-type
+    # rows; defaults to False rather than null since "not asked yet" and
+    # "asked and declined" are both "not yet a reference," and dimension 5
+    # needs a boolean, not a null, to award or withhold the +20.
+    reference_willing: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
     )
 
     __table_args__ = (

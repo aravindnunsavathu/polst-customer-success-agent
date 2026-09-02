@@ -1,0 +1,91 @@
+# Polst Customer Health Model — scoring configuration.
+# Mirrors context/trackers/health-portfolio-tracker__config.csv (doc 02 §3-5).
+# Every weight and threshold here is a hypothesis (doc 02 §7) — retuning
+# this file is a config change, never a code change.
+version: "v1"
+
+dimension_weights:
+  volume_trajectory: 0.30
+  breadth: 0.20
+  value_realisation: 0.20
+  campaign_quality: 0.15
+  relationship_coverage: 0.10
+  sentiment_friction: 0.05
+
+# Evaluated in order; first band whose min_ratio the actual ratio meets
+# or exceeds wins. Doc 02 §5, dimension 1.
+volume_trajectory_bands:
+  - {min_ratio: 1.25, score: 100}
+  - {min_ratio: 1.00, score: 85}
+  - {min_ratio: 0.85, score: 65}
+  - {min_ratio: 0.70, score: 40}
+  - {min_ratio: 0.50, score: 20}
+  - {min_ratio: 0.0, score: 0}
+
+# Doc 02 §5, dimension 3.
+value_realisation_scores:
+  confirmed_within_days_90: 100
+  confirmed_within_days_180: 70
+  documented_not_confirmed: 40
+  none: 0
+
+# Doc 02 §5, dimension 6. Structurally unused until an escalation/ticket
+# data source exists — see metrics/dimensions.py.
+sentiment_friction_scores:
+  clean: 100
+  elevated: 50
+  escalation_open: 0
+
+# Doc 02 §3.
+score_bands:
+  healthy_min: 75
+  watch_min: 50
+  at_risk_min: 30
+
+# Doc 02 §3 overrides — the cap each condition applies, and the
+# thresholds that decide whether the condition fires. Config-driven per
+# BUILD-PROMPT.md §5's "specific numbers ... must be config-driven".
+override_caps:
+  watch: 74
+  at_risk: 49
+  critical: 29
+
+override_thresholds:
+  no_campaign_days_at_risk: 45
+  no_campaign_days_critical: 90
+  commitment_utilization_floor: 0.40
+  days_left_in_term_for_utilization_test: 90
+  tenure_days_before_sponsor_single_creator_caps: 90
+  open_escalation_days_at_risk: 30
+
+# Accounts younger than age_days_threshold score dimension 1 against an
+# onboarding target instead of the trailing-90d ratio (doc 02 §5).
+# target_campaigns_by_day_90 is doc 02's day 31-90 "Healthy" threshold.
+onboarding_target:
+  age_days_threshold: 180
+  target_campaigns_by_day_90: 6
+
+# Doc 02 §8: year-over-year comparison flags alongside the sequential one
+# once an account has this much history. divergence_threshold is how far
+# apart the sequential and YoY ratios must be before we flag the
+# sequential number as a likely seasonal false alarm.
+seasonality:
+  min_months_history_for_yoy: 12
+  divergence_threshold: 0.15
+
+# No campaign quality metric is confirmed yet (BUILD-PROMPT.md §16.1) —
+# the percentile path is built but stays behind use_percentile until
+# Product names a metric and the cohort is large enough. Until then, the
+# rubric falls back to creator repeat rate, doc 02 §4's own suggested
+# proxy ("if you can only instrument two things, make them volume and
+# repeat rate").
+campaign_quality:
+  use_percentile: false
+  percentile_min_cohort_size: 15
+  repeat_rate_rubric:
+    high_min: 0.6
+    medium_min: 0.3
+
+# Doc 02 §5, dimension 5 — five checks, +20 each, capped at 100.
+relationship_coverage:
+  points_per_check: 20

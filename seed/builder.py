@@ -125,10 +125,15 @@ def spread_campaigns_in_month(
     account_id,
     department_id,
     creator_ids: list,
+    as_of: date,
     abandonment_rate: float = 0.08,
 ) -> list[Campaign]:
     campaigns = []
-    dim = days_in_month(month_start)
+    # Clip to the days actually elapsed in a partial (current) month — a
+    # random offset drawn against the month's full length would otherwise
+    # sometimes land after as_of, i.e. a campaign "created" in the
+    # future, which is invisible to every backward-looking scoring window.
+    dim = min(days_in_month(month_start), (as_of - month_start).days + 1)
     for i in range(count):
         day_offset = rng.randrange(0, dim)
         created_at = datetime.combine(month_start, time(hour=rng.randrange(8, 18))) + timedelta(
@@ -173,6 +178,7 @@ def make_stakeholder(
     relationship_strength: RelationshipStrength = RelationshipStrength.NEUTRAL,
     last_contact_at: datetime | None = None,
     departed_at: datetime | None = None,
+    reference_willing: bool = False,
 ) -> Stakeholder:
     return Stakeholder(
         id=uuid.uuid4(),
@@ -184,6 +190,7 @@ def make_stakeholder(
         relationship_strength=relationship_strength,
         last_contact_at=last_contact_at,
         departed_at=departed_at,
+        reference_willing=reference_willing,
     )
 
 
