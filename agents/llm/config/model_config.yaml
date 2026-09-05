@@ -16,3 +16,12 @@ agents:
   decay_outreach_drafting:
     provider: heuristic
     model: heuristic-v1
+  onboarding_internal_brief:
+    provider: heuristic
+    model: heuristic-v1
+  onboarding_drafting:
+    provider: heuristic
+    model: heuristic-v1
+  second_creator_drafting:
+    provider: heuristic
+    model: heuristic-v1

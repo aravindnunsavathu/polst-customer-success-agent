@@ -25,6 +25,8 @@ python -m ingest.jobs.reconcile_billing   # should print "clean" against seed da
 python -m core.jobs.score_portfolio       # scores every account, writes health_scores
 python -m signals.jobs.evaluate_triggers  # evaluates §6 triggers, opens signals/play_runs/coverage_elevations
 python -m agents.jobs.run_decay_agent     # diagnoses + classifies open decay play_runs, drafts outreach
+python -m agents.jobs.run_onboarding_agent    # advances open onboarding play_runs one stage each
+python -m agents.jobs.run_second_creator_agent # scans for single-threaded departments, drafts seeding actions
 
 # Tests need the schema on the TEST database too (separate from dev — see below):
 DATABASE_URL=$TEST_DATABASE_URL alembic upgrade head
@@ -58,7 +60,7 @@ classifier. Point `model_config.yaml` at `provider: bedrock` once real
 AWS/Bedrock access exists, and review `bedrock.py` against the actual
 response shape before trusting it.
 
-## What's here after Phase 4
+## What's here after Phase 5
 
 - `core/` — canonical SQLAlchemy schema (19 tables) + Alembic migrations.
   Accounts and stakeholders are versioned (valid_from/valid_to); everything
@@ -90,8 +92,33 @@ response shape before trusting it.
   immediately. `agents/jobs/run_decay_agent.py` also closes out
   play_runs whose 90-day recovery window has elapsed (recovered vs.
   unrecovered), the play's named metric.
+  Also the **Onboarding Agent** (§7 Play 1): a multi-week state machine,
+  not a single-shot decision — `agents/onboarding/agent.py` advances at
+  most one stage per invocation, persisting progress in
+  `play_runs.exit_test_results` across nightly runs (same pattern the
+  Decay Agent uses for its 90-day recovery window). Stage 1 validates the
+  Sales handoff (`agents/onboarding/handoff.py`, pure/deterministic —
+  a data-completeness check, not a judgment call) and **returns an
+  incomplete handoff to Sales as a real workflow state** (`play_run`
+  closes with `outcome="handoff_rejected"`), not a warning. Stage 2
+  drafts the internal kickoff brief and the customer-facing written
+  success criteria. Stage 3, at ~day 40, drafts a value-confirmation
+  request to the economic buyer if no result is confirmed yet. Stage 4
+  evaluates all four doc-06 exit-test conditions live every run and
+  **never closes at launch alone** — it closes `completed_successfully`
+  only once all four are true, or `stalled` past a stall window (see
+  Known scope decisions). Also the **Second-Creator Agent**: a
+  background job (`agents/second_creator/agent.py`, not a written play)
+  that scans every account's live departments each night for exactly one
+  active creator and drafts a seeding message before that creator
+  leaves — "the cheapest prevention in the whole model."
+  `agents/jobs/run_onboarding_agent.py` and
+  `agents/jobs/run_second_creator_agent.py` are the nightly Postgres
+  bridges.
 - `prompts/` — versioned prompt templates (never inline strings):
-  `decay_cause_classification.md`, `decay_outreach_creator.md`.
+  `decay_cause_classification.md`, `decay_outreach_creator.md`,
+  `onboarding_kickoff_brief.md`, `onboarding_success_criteria.md`,
+  `onboarding_value_confirmation.md`, `second_creator_seeding.md`.
 - `seed/` — the synthetic portfolio generator (§13): 8 scenarios × 5
   accounts = 40, deterministic given (seed, as_of).
 - `ingest/` — the `SourceAdapter` interface, a fixture-backed reference
@@ -184,3 +211,41 @@ response shape before trusting it.
   matches CLAUDE.md's "gates enforced in code, not in prompts," but can't
   catch every rephrasing. A flagged draft is forced to at least `Draft`
   autonomy regardless of promotion status; it's never silently dropped.
+- **`STALL_DAYS = 120` is our own addition, not in the brief.** Doc 06
+  gives Play 1 a day -3 → day 45 sequence and an exit test, but no
+  cutoff for an onboarding that never meets it. Without one, a genuinely
+  abandoned onboarding's `play_run` stays open forever, which violates
+  §2.4 ("every play run records an outcome"). 120 days is a generous
+  multiple of the day-45 value-confirmation checkpoint, not a value from
+  the spec.
+- **`buyer_has_seen_result` is a proxy, not a direct signal.** No event
+  in the schema records "the economic buyer saw the result." A
+  `value_doc` with `confirmed_by` set is the closest available stand-in
+  — doc 06's process routes confirmation through the economic buyer, so
+  a confirmed doc implies they saw it. A real "shared with buyer" event
+  would be a strictly better signal if doc 03's instrumentation ever adds
+  one.
+- **The exit test is recomputed live every run, not cached in state.**
+  `_exit_test_conditions()` reads current campaigns/value-docs each
+  invocation rather than trusting a stale flag — campaigns and value docs
+  can change between runs for reasons the state machine itself didn't
+  cause (e.g. a value doc confirmed independently of the day-40 request).
+- **`HeuristicLLMProvider._draft()` branches on which evidence keys are
+  present**, not on a prompt name — it originally assumed every drafting
+  prompt was "checking in on the customer's stated objective" (true for
+  Decay and Onboarding), which produced a nonsensical draft for
+  Second-Creator seeding (no objective to check in on, and the prompt's
+  actual ask — "invite a colleague" — never appeared). Fixed by keying
+  off the absence of `stated_objective` in the evidence block combined
+  with the presence of `department_id`, since that's the shape only
+  second-creator evidence has. Caught by `tests/agents/test_second_creator.py`,
+  not by the earlier ad-hoc smoke test, which is why it's a named
+  regression test now rather than a silent fix.
+- **`ValueDocFact` gained a `confirmed_by` field** (`metrics/types.py`,
+  default `None` so no existing call site broke) — the onboarding exit
+  test's `buyer_has_seen_result` proxy needs it, but the pure fact
+  dataclass never carried it and `core/jobs/fetch.py`'s
+  `fetch_value_doc_facts` was silently dropping the column, so the
+  condition could never be true against real data. Found while writing
+  `tests/agents/test_onboarding_agent.py`'s exit-test-passes case, not
+  by manual smoke testing.

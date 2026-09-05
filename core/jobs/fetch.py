@@ -40,7 +40,10 @@ def fetch_campaign_facts(session: Session, account_id: uuid.UUID) -> list[Campai
 
 def fetch_value_doc_facts(session: Session, account_id: uuid.UUID) -> list[ValueDocFact]:
     value_docs = session.execute(select(ValueDoc).where(ValueDoc.account_id == account_id)).scalars().all()
-    return [ValueDocFact(created_at=v.created_at, confirmed_at=v.confirmed_at) for v in value_docs]
+    return [
+        ValueDocFact(created_at=v.created_at, confirmed_at=v.confirmed_at, confirmed_by=v.confirmed_by)
+        for v in value_docs
+    ]
 
 
 def fetch_stakeholder_facts(session: Session, account_id: uuid.UUID) -> list[StakeholderFact]:

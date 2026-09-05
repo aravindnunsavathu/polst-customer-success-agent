@@ -78,6 +78,16 @@ class HeuristicLLMProvider(LLMProvider):
 
     @staticmethod
     def _draft(prompt: str, evidence: dict) -> str:
+        # second_creator_seeding evidence has no "stated_objective" key at
+        # all (unlike decay/onboarding, which always include it, even as
+        # None) — that absence is the signal this is a seeding message,
+        # not a check-in on the customer's objective.
+        if "department_id" in evidence and "stated_objective" not in evidence:
+            return (
+                "Hi — you've been running campaigns for your team solo and it's going well. "
+                "Worth bringing in a colleague so someone else can help carry the load? "
+                "Happy to help get them set up."
+            )
         objective = evidence.get("stated_objective") or "the result you were working toward"
         return (
             f"Hi — checking in on {objective}. Are you still on track with that? "
