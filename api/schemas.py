@@ -140,6 +140,30 @@ class AccountDetail(BaseModel):
     play_runs: list[PlayRunOut]
 
 
+class PlayLogActionOut(BaseModel):
+    id: str
+    agent: str
+    type: str
+    autonomy_level: str
+    status: str
+    reasoning: str
+    created_at: datetime
+
+
+class PlayRunLogOut(BaseModel):
+    id: str
+    account_id: str
+    account_name: str
+    tier: str
+    play: str
+    opened_at: datetime
+    closed_at: datetime | None
+    outcome: str | None
+    cause_classification: str | None
+    exit_test_results: dict
+    actions: list[PlayLogActionOut]
+
+
 class PortfolioReportOut(BaseModel):
     id: str
     report_type: str

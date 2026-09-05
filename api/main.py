@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routers import accounts, actions, reports, signals
+from api.routers import accounts, actions, plays, reports, signals
 
 app = FastAPI(title="Polst CS Agent Platform")
 
@@ -19,6 +19,7 @@ app.include_router(accounts.router)
 app.include_router(signals.router)
 app.include_router(actions.router)
 app.include_router(reports.router)
+app.include_router(plays.router)
 
 
 @app.get("/")

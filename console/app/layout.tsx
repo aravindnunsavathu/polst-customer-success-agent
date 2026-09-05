@@ -25,6 +25,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <Link href="/queue" className="hover:text-gray-900">
                 Approval Queue
               </Link>
+              <Link href="/plays" className="hover:text-gray-900">
+                Play Log
+              </Link>
+              <Link href="/calibration" className="hover:text-gray-900">
+                Calibration
+              </Link>
             </nav>
           </header>
           {children}

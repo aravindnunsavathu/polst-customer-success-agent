@@ -142,3 +142,54 @@ export async function fetchActions(status?: string): Promise<ActionOut[]> {
   if (!res.ok) throw new Error(`Failed to fetch actions: ${res.status}`);
   return res.json();
 }
+
+export type PlayLogActionOut = {
+  id: string;
+  agent: string;
+  type: string;
+  autonomy_level: string;
+  status: string;
+  reasoning: string;
+  created_at: string;
+};
+
+export type PlayRunLogOut = {
+  id: string;
+  account_id: string;
+  account_name: string;
+  tier: string;
+  play: string;
+  opened_at: string;
+  closed_at: string | null;
+  outcome: string | null;
+  cause_classification: string | null;
+  exit_test_results: Record<string, unknown>;
+  actions: PlayLogActionOut[];
+};
+
+export async function fetchPlays(params?: { play?: string; status?: string }): Promise<PlayRunLogOut[]> {
+  const url = new URL(`${API_URL}/plays`);
+  if (params?.play) url.searchParams.set("play", params.play);
+  if (params?.status) url.searchParams.set("status", params.status);
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Failed to fetch plays: ${res.status}`);
+  return res.json();
+}
+
+export type PortfolioReportOut = {
+  id: string;
+  report_type: string;
+  period_start: string;
+  period_end: string;
+  generated_at: string;
+  data: Record<string, any>;
+  narrative: string | null;
+};
+
+export async function fetchReports(type?: string): Promise<PortfolioReportOut[]> {
+  const url = new URL(`${API_URL}/reports`);
+  if (type) url.searchParams.set("type", type);
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Failed to fetch reports: ${res.status}`);
+  return res.json();
+}

@@ -181,15 +181,24 @@ response shape before trusting it.
   (open signals, play history), `GET /signals` (the portfolio-wide
   worklist, sorted by priority), `GET /reports` (optional `?type=`) and
   `GET /reports/{id}` (the Portfolio Analyst's four reviews + the VoC
-  Router's ranked list). Two write endpoints for the approval
+  Router's ranked list), `GET /plays` (optional `?play=`/`?status=`, the
+  cross-account play log with each play_run's actions and exit-test
+  results nested in). Two write endpoints for the approval
   queue: `POST /actions/{id}/approve`, `POST /actions/{id}/reject`
   (mandatory structured reason) — now genuinely populated by the Decay
   Agent, not just proven against fixtures.
 - `console/` — Next.js 16 (App Router, TypeScript, Tailwind), no design
   flourish per §8: Portfolio, Account detail (+ open signals, play
-  history), Signals worklist, Approval Queue. Unchanged since Phase 3 —
-  see Known scope decisions on why Phase 7's Play log and Calibration
-  screens are API-only for now.
+  history), Signals worklist, Approval Queue, **Play Log** (every play
+  run across the portfolio, filterable by play type and open/closed,
+  each row's actions and exit-test JSON behind a `<details>` expander —
+  no client JS needed for that), and **Calibration** (hit rate, false
+  alarm rate, median lead time as stat cards, the latest narrative, and
+  a Surprises table — decay/churn events the model didn't flag a quarter
+  ahead — plus a compact history table if more than one quarterly report
+  exists). Both are the §8 screens Phase 7 originally shipped API-only;
+  see Known scope decisions for why they're plain server components with
+  zero new client-side state.
 - `infra/` — Terraform for Phase 0 (see `infra/README.md`), authored but
   not applied.
 
@@ -408,11 +417,27 @@ response shape before trusting it.
   would have caught it"). `evals/calibration.py` surfaces *which* events
   were surprises (not flagged a quarter ahead); the calibration prompt is
   explicitly instructed not to invent what the missing signal was.
-- **No new console pages this phase** (Play log, Calibration), matching
-  the precedent Phases 4-6 already set — the console stayed at its
-  Phase 3 shape while three phases of agents shipped behind read-only API
-  endpoints instead. `GET /reports` exists so a future console screen is
-  a pure frontend exercise, not a backend one.
+- **Phase 7 shipped Play log and Calibration API-only; both got their
+  console screens in a follow-up pass.** The three-phase gap (Phases
+  4-6 also shipped zero new console pages) meant `GET /reports` already
+  existed and adding the screens really was the "pure frontend exercise"
+  the earlier note predicted — the only new backend piece needed was
+  `GET /plays`, since the account-scoped play history nested in
+  `GET /accounts/{id}` had no cross-account equivalent.
+- **Both new pages are plain server components, no `"use client"`.**
+  Filters (`/plays?play=&status=`) are `<Link>`s that change the URL,
+  read back via `searchParams`; per-row detail (a play_run's actions,
+  its exit-test JSON) is a native `<details>` disclosure, not client
+  state — consistent with the read-only Signals/Portfolio pages, and
+  cheaper than QueueList's client-side approve/reject flow, which
+  actually needs to mutate state without a full page reload.
+- **Calibration's surprises table needed account names, not just IDs**
+  — `evals/calibration.py` stays pure and only ever produces an
+  `account_id` string, so `agents/jobs/run_portfolio_analyst.py`'s
+  `_calibration_summary` now also attaches `account_name` when it builds
+  the report's `data.surprises` list, the same "resolve names at the
+  DB-aware edge, keep the pure layer free of ORM lookups" split used
+  everywhere else in this codebase.
 - **The golden scenario eval suite runs against real seed-generated data
   through a real test-DB round trip** (`tests/evals/test_golden_scenarios.py`),
   not hand-rolled fixtures — it inserts one of the actual

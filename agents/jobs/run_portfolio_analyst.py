@@ -90,6 +90,7 @@ def _had_intervention(session: Session, account_id, start: date, end: date) -> b
 
 
 def _calibration_summary(session: Session, accounts: list[Account], as_of: date) -> dict:
+    names_by_account_id = {str(a.account_id): a.name for a in accounts}
     assessments = []
     episodes = []
     for account in accounts:
@@ -118,8 +119,9 @@ def _calibration_summary(session: Session, accounts: list[Account], as_of: date)
         "false_alarm_rate": false_alarm.value, "false_alarm_rate_null_reason": false_alarm.reason,
         "lead_time_days": lead_time.value, "lead_time_null_reason": lead_time.reason,
         "surprises": [
-            {"account_id": a.event.account_id, "event_type": a.event.event_type,
-             "event_date": a.event.event_date.isoformat(), "band_one_quarter_before": a.band_one_quarter_before,
+            {"account_id": a.event.account_id, "account_name": names_by_account_id.get(a.event.account_id),
+             "event_type": a.event.event_type, "event_date": a.event.event_date.isoformat(),
+             "band_one_quarter_before": a.band_one_quarter_before,
              "band_two_quarters_before": a.band_two_quarters_before}
             for a in surprise_list
         ],
