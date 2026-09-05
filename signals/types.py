@@ -19,6 +19,11 @@ from metrics.types import (  # noqa: F401 — re-exported for callers
 class DepartmentFact:
     id: str
     created_at: datetime
+    # Only the Expansion Agent needs this — matching an account plan's
+    # free-text expansion_target_department against a live department by
+    # name, since play_runs/signals have no department_id to key off.
+    # Optional so every other DepartmentFact() call site is unaffected.
+    name: str | None = None
 
 
 @dataclass(frozen=True)

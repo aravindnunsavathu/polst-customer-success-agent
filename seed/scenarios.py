@@ -413,8 +413,10 @@ def expansion_ready(rng, faker, as_of: date, index: int) -> list:
         as_of=as_of,
         # 3 potential departments, 2 live — the 3rd is the expansion target.
     )
+    champion_name = faker.name()
+    buyer_name = faker.name()
     objects.append(builder.make_stakeholder(
-        identity.id, faker.name(), StakeholderType.CHAMPION,
+        identity.id, champion_name, StakeholderType.CHAMPION,
         relationship_strength=RelationshipStrength.STRONG,
         last_contact_at=datetime.combine(as_of - timedelta(days=7), time(10, 0)),
         reference_willing=True,
@@ -425,13 +427,13 @@ def expansion_ready(rng, faker, as_of: date, index: int) -> list:
         last_contact_at=datetime.combine(as_of - timedelta(days=20), time(10, 0)),
     ))
     objects.append(builder.make_stakeholder(
-        identity.id, faker.name(), StakeholderType.ECONOMIC_BUYER,
+        identity.id, buyer_name, StakeholderType.ECONOMIC_BUYER,
         relationship_strength=RelationshipStrength.STRONG,
         last_contact_at=datetime.combine(as_of - timedelta(days=14), time(10, 0)),
     ))
     objects.append(builder.make_value_doc(
         identity.id, "Cut pricing test turnaround from 2 weeks to 3 days", "test turnaround time",
-        confirmed_by=faker.name(), confirmed_at=datetime.combine(as_of - timedelta(days=40), time(9, 0)),
+        confirmed_by=buyer_name, confirmed_at=datetime.combine(as_of - timedelta(days=40), time(9, 0)),
     ))
     objects.append(builder.make_account_plan(
         identity.id, datetime.combine(as_of, time(9, 0)),
@@ -441,6 +443,10 @@ def expansion_ready(rng, faker, as_of: date, index: int) -> list:
         potential_basis="3 addressable departments, 2 live and healthy",
         top_risk="None material — the qualification gate is otherwise clear",
         top_opportunity="Franchise Relations — champion has offered to make the introduction",
+        expansion_target_department="Franchise Relations",
+        expansion_target_owner=champion_name,
+        expansion_champion_introduction=True,
+        expansion_new_budget_holder=False,
     ))
     return objects
 

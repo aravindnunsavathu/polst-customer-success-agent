@@ -25,3 +25,12 @@ agents:
   second_creator_drafting:
     provider: heuristic
     model: heuristic-v1
+  renewal_internal_brief:
+    provider: heuristic
+    model: heuristic-v1
+  renewal_drafting:
+    provider: heuristic
+    model: heuristic-v1
+  expansion_drafting:
+    provider: heuristic
+    model: heuristic-v1

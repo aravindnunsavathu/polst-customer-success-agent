@@ -28,10 +28,16 @@ matrix:
   decay_outreach_creator:
     customer_facing: true
     tiers: {T1: draft, T2: draft, T3: auto}
+  expansion_champion_case:
+    customer_facing: true
+    tiers: {T1: draft, T2: draft, T3: auto}
   decay_outreach_buyer:
     customer_facing: true
     tiers: {T1: human_writes, T2: draft, T3: draft}
   value_confirmation_request:
+    customer_facing: true
+    tiers: {T1: human_writes, T2: draft, T3: draft}
+  renewal_value_review:
     customer_facing: true
     tiers: {T1: human_writes, T2: draft, T3: draft}
   renewal_commercial_proposal:

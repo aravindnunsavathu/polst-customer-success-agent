@@ -27,6 +27,8 @@ python -m signals.jobs.evaluate_triggers  # evaluates §6 triggers, opens signal
 python -m agents.jobs.run_decay_agent     # diagnoses + classifies open decay play_runs, drafts outreach
 python -m agents.jobs.run_onboarding_agent    # advances open onboarding play_runs one stage each
 python -m agents.jobs.run_second_creator_agent # scans for single-threaded departments, drafts seeding actions
+python -m agents.jobs.run_renewal_agent       # advances open renewal play_runs (T-20 -> T+7) one stage each
+python -m agents.jobs.run_expansion_agent     # re-validates the Play 4 gate in code, drafts the champion case
 
 # Tests need the schema on the TEST database too (separate from dev — see below):
 DATABASE_URL=$TEST_DATABASE_URL alembic upgrade head
@@ -60,7 +62,7 @@ classifier. Point `model_config.yaml` at `provider: bedrock` once real
 AWS/Bedrock access exists, and review `bedrock.py` against the actual
 response shape before trusting it.
 
-## What's here after Phase 5
+## What's here after Phase 6
 
 - `core/` — canonical SQLAlchemy schema (19 tables) + Alembic migrations.
   Accounts and stakeholders are versioned (valid_from/valid_to); everything
@@ -115,10 +117,35 @@ response shape before trusting it.
   `agents/jobs/run_onboarding_agent.py` and
   `agents/jobs/run_second_creator_agent.py` are the nightly Postgres
   bridges.
+  Also the **Renewal Agent** (§7 Play 3): a T-20 → T+7 state machine on
+  the same play_run-state pattern. T-20 runs the evidence, utilization,
+  and stakeholder checks *before* any commercial conversation
+  (`agents/renewal/diagnosis.py`) and — when utilization is low from the
+  start of the term rather than from a recent decline — logs a
+  `FeedbackItem` tagged `oversold_commitment` and routed to **Sales**
+  ("that's a Sales-handoff finding, not a CS failure," doc 06), the
+  Renewal Agent's analogue of the Decay Agent's product-friction routing.
+  T-15 drafts the value review, T-10 the growth-plan proposal, T-5 the
+  deliberate objection check, and T+7 always closes the play with a
+  debrief, classifying the outcome from the account's own versioned
+  history (see Known scope decisions). And the **Expansion Agent**
+  (§7 Play 4): the play_run the signals layer opens on the simple
+  3-condition trigger gets **re-validated here against the full 6-point
+  qualification gate in code** (`agents/expansion/gate.py`) — an
+  unqualified account closes immediately, undrafted. A new budget holder
+  hands to Sales; the same holder means CS runs it, starting with a
+  drafted internal case for the champion to present. Once the named
+  target department actually goes live, the agent tracks doc 06's
+  four-point exit test and, on success, opens a fresh **Onboarding**
+  play_run for the new department — "a new department triggers a full
+  Play 1 run, not an extension of the existing one." Both agents' jobs:
+  `agents/jobs/run_renewal_agent.py`, `agents/jobs/run_expansion_agent.py`.
 - `prompts/` — versioned prompt templates (never inline strings):
   `decay_cause_classification.md`, `decay_outreach_creator.md`,
   `onboarding_kickoff_brief.md`, `onboarding_success_criteria.md`,
-  `onboarding_value_confirmation.md`, `second_creator_seeding.md`.
+  `onboarding_value_confirmation.md`, `second_creator_seeding.md`,
+  `renewal_value_review.md`, `renewal_growth_proposal.md`,
+  `renewal_objection_check.md`, `expansion_champion_case.md`.
 - `seed/` — the synthetic portfolio generator (§13): 8 scenarios × 5
   accounts = 40, deterministic given (seed, as_of).
 - `ingest/` — the `SourceAdapter` interface, a fixture-backed reference
@@ -181,10 +208,12 @@ response shape before trusting it.
   right grain — no per-department value confirmation, no reference/
   case-study project entity — so `signals/coverage.py` uses a fixed,
   documented duration (60 and 90 days respectively) instead.
-- **Play 4's trigger is the simple 3-condition version** (healthy +
-  confirmed result + addressable department not live) — the full 6-point
-  qualification gate is Phase 6's job, enforced in code when the
-  Expansion Agent actually runs.
+- **Play 4's *trigger* (which play_run opens) stays the simple
+  3-condition version** (healthy + confirmed result + addressable
+  department not live) — it only decides whether to open the play_run.
+  The full 6-point qualification gate (Phase 6) is re-checked in code by
+  the Expansion Agent itself before anything drafts, per §7's "enforce
+  this gate in code, not in the prompt."
 - **Diagnosis is deterministic Python, not an LLM step.** Localizing
   decay to a department/creator and estimating an onset date is factual
   computation from data already in Postgres — only cause classification
@@ -241,6 +270,60 @@ response shape before trusting it.
   second-creator evidence has. Caught by `tests/agents/test_second_creator.py`,
   not by the earlier ad-hoc smoke test, which is why it's a named
   regression test now rather than a silent fix.
+- **Three of Play 4's six gate conditions have no usage-data source at
+  all** — a named target department with a named owner, whether the
+  champion will make the introduction, and whether the budget path
+  involves a new holder. These are CS judgment, not something derivable
+  from product data, so a migration added
+  `account_plans.expansion_target_department/_owner/_champion_introduction/_new_budget_holder`,
+  filled by a human, same status as `tier`/`quadrant`/`commercial_model`.
+  `expansion_new_budget_holder` is nullable rather than defaulting to
+  `False` — "unknown" and "confirmed same holder" must not read the
+  same way, or the gate would silently pass accounts nobody actually
+  checked.
+- **`DepartmentFact` gained a `name` field** (default `None`) purely so
+  the Expansion Agent can match the account plan's free-text
+  `expansion_target_department` against a live department — nothing else
+  in `/signals` or `/metrics` needed a department's name before.
+- **The Renewal Agent's "recommitment secured" signal is real, not a
+  proxy** — doc 06's exit test asks for "recommitment ≥ prior volume" at
+  T+7, far too soon to see a usage-volume comparison mean anything.
+  Instead it compares the account's *own versioned history*: `accounts`
+  is append-only (`valid_from`/`valid_to`), so a genuine recommitment
+  shows up as a new version with `commitment_end`/`next_review_date`
+  pushed forward and `committed_volume` held or grown. If the term
+  wasn't extended and no campaigns ran since the reference date, the
+  outcome is `lost`; otherwise (still consuming, but no recorded
+  extension) it's honestly logged as `undetermined` rather than guessed.
+- **"Growth plan agreed" is tracked as "presented," not "agreed."**
+  Nothing in the schema records the buyer's agreement to a proposal —
+  same class of gap as Onboarding's `buyer_has_seen_result` proxy.
+  `growth_plan_presented` is true once both the growth-proposal and
+  objection-check stages have run; a human still has to confirm actual
+  agreement.
+- **The T-5 objection check and the T-10 growth proposal share the
+  `renewal_commercial_proposal` autonomy row** but are logged as distinct
+  `Action.type`s (`renewal_growth_proposal` / `renewal_objection_check`)
+  for play-log clarity — same precedent as the Second-Creator Agent
+  resolving against `routine_check_in` while storing its own action
+  type. Doc 06 treats both as part of one commercial conversation with
+  the same risk profile; §9 has no separate row for a T-5 follow-up.
+- **Doc 06's "paper it" step (T-5, signing the actual contract) isn't
+  modeled as a stage.** It's an offline step with no data this system
+  computes or drafts — the objections stage is the last agent-driven
+  checkpoint before it.
+- **Expansion's per-department exit-test conditions are proxies where
+  the schema has no per-department granularity.** There's no
+  per-department account plan, so `departmental_success_criteria_documented`
+  uses "a value doc confirmed since the department launched" as the
+  nearest available evidence rather than a direct "documented" signal.
+- **Two new stall windows, our own addition, not in the brief**
+  (`NO_LAUNCH_STALL_DAYS = 180`, `DID_NOT_STICK_STALL_DAYS = 270` in
+  `agents/expansion/agent.py`) — same §2.4 rationale as Onboarding's
+  `STALL_DAYS`: every play run needs a logged outcome, including "the
+  target department never launched" and "it launched but didn't stick,"
+  doc 06's own named worst case ("a department added and lost is worse
+  than neutral").
 - **`ValueDocFact` gained a `confirmed_by` field** (`metrics/types.py`,
   default `None` so no existing call site broke) — the onboarding exit
   test's `buyer_has_seen_result` proxy needs it, but the pure fact

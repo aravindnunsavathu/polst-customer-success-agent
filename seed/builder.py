@@ -229,6 +229,10 @@ def make_account_plan(
     potential_basis: str | None = None,
     top_risk: str | None = None,
     top_opportunity: str | None = None,
+    expansion_target_department: str | None = None,
+    expansion_target_owner: str | None = None,
+    expansion_champion_introduction: bool = False,
+    expansion_new_budget_holder: bool | None = None,
 ) -> AccountPlan:
     return AccountPlan(
         id=uuid.uuid4(),
@@ -239,6 +243,10 @@ def make_account_plan(
         potential_basis=potential_basis,
         top_risk=top_risk,
         top_opportunity=top_opportunity,
+        expansion_target_department=expansion_target_department,
+        expansion_target_owner=expansion_target_owner,
+        expansion_champion_introduction=expansion_champion_introduction,
+        expansion_new_budget_holder=expansion_new_budget_holder,
         last_refreshed=last_refreshed,
     )
 

@@ -63,7 +63,7 @@ def fetch_stakeholder_facts(session: Session, account_id: uuid.UUID) -> list[Sta
 
 def fetch_department_facts(session: Session, account_id: uuid.UUID) -> list[DepartmentFact]:
     departments = session.execute(select(Department).where(Department.account_id == account_id)).scalars().all()
-    return [DepartmentFact(id=str(d.id), created_at=d.created_at) for d in departments]
+    return [DepartmentFact(id=str(d.id), created_at=d.created_at, name=d.name) for d in departments]
 
 
 def fetch_user_facts(session: Session, account_id: uuid.UUID) -> list[UserFact]:

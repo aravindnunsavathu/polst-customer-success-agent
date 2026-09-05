@@ -78,6 +78,25 @@ class AccountPlan(Base, UUIDPrimaryKey, CreatedAtMixin):
     potential_basis: Mapped[str | None] = mapped_column(Text, nullable=True)
     top_risk: Mapped[str | None] = mapped_column(Text, nullable=True)
     top_opportunity: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Play 4's qualification gate (doc 06) names three conditions that
+    # are relationship/deal judgment, not usage data: a named target
+    # department with a named owner, whether the champion will introduce
+    # it, and whether the budget path involves a new holder. Nothing else
+    # in the schema can answer these, and "enforce this gate in code, not
+    # the prompt" (BUILD-PROMPT.md §7) requires a real field to check
+    # rather than an LLM parsing top_opportunity's free text. A human (or
+    # an explicit CS decision) sets these, same as tier/quadrant/
+    # commercial_model — never inferred.
+    expansion_target_department: Mapped[str | None] = mapped_column(String, nullable=True)
+    expansion_target_owner: Mapped[str | None] = mapped_column(String, nullable=True)
+    expansion_champion_introduction: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    # Nullable, not a bool defaulting to False: "unknown" and "confirmed
+    # same holder" are different states, and the gate's "budget path
+    # understood" condition must fail loud on the former rather than
+    # silently reading as "no new holder."
+    expansion_new_budget_holder: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     last_refreshed: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
