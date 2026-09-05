@@ -11,6 +11,16 @@ from datetime import date, timedelta
 
 from metrics.types import CampaignFact, MetricResult
 
+# There is no real billing-tied revenue figure wired into this schema yet
+# (BUILD-PROMPT.md's driver tree: departments live x creators x campaigns
+# x price, but only the first term and the flat per-department price from
+# context/polst-company-product.md are available without a pricing/
+# billing integration). departments_live x this constant is the proxy
+# used everywhere a "revenue" number is needed — the API's priority
+# scoring, the Portfolio Analyst's reviews and NRR roll-up. One constant,
+# not one hardcoded in each caller.
+REVENUE_PER_DEPARTMENT_PROXY = 8000
+
 
 def billable_in_window(campaigns: list[CampaignFact], start: date, end: date) -> list[CampaignFact]:
     return [c for c in campaigns if c.billable and start <= c.created_at.date() <= end]

@@ -40,7 +40,13 @@ def score_account(
     return HealthScore(
         id=uuid.uuid4(),
         account_id=account.account_id,
-        scored_at=datetime.now(timezone.utc),
+        # The DATE must be as_of, not wall-clock — a backfill run scoring
+        # a historical as_of (Phase 7's calibration harness needs genuine
+        # quarter-spaced history) would otherwise stamp every row with
+        # today's date, so "what did the model say two quarters ago"
+        # could never be answered by querying scored_at. The time-of-day
+        # is still real wall-clock so same-day re-runs order predictably.
+        scored_at=datetime.combine(as_of, datetime.now(timezone.utc).time(), tzinfo=timezone.utc),
         volume_trajectory_score=result.dimension_scores["volume_trajectory"].score,
         breadth_score=result.dimension_scores["breadth"].score,
         value_realisation_score=result.dimension_scores["value_realisation"].score,

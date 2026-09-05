@@ -15,10 +15,11 @@ from core.enums import ActionStatus, PlayType
 from core.jobs.fetch import (
     fetch_campaign_facts,
     fetch_department_facts,
+    fetch_health_score_history,
     fetch_stakeholder_facts,
     fetch_value_doc_facts,
 )
-from core.models import Account, AccountPlan, Action, HealthScore, PlayRun
+from core.models import Account, AccountPlan, Action, PlayRun
 
 
 def _latest_account_plan(session: Session, account_id) -> AccountPlan | None:
@@ -28,13 +29,6 @@ def _latest_account_plan(session: Session, account_id) -> AccountPlan | None:
         .order_by(AccountPlan.last_refreshed.desc())
         .limit(1)
     ).scalar_one_or_none()
-
-
-def _health_score_history(session: Session, account_id) -> list[tuple[date, str | None]]:
-    rows = session.execute(
-        select(HealthScore.scored_at, HealthScore.band).where(HealthScore.account_id == account_id)
-    ).all()
-    return [(scored_at.date(), band.value if band else None) for scored_at, band in rows]
 
 
 def _approved_without_edit_count(session: Session, action_type: str) -> int:
@@ -67,7 +61,7 @@ def process_play_run(session: Session, play_run: PlayRun, as_of: date) -> str:
         departments=fetch_department_facts(session, play_run.account_id),
         stakeholders=fetch_stakeholder_facts(session, play_run.account_id),
         value_docs=fetch_value_doc_facts(session, play_run.account_id),
-        health_score_history=_health_score_history(session, play_run.account_id),
+        health_score_history=fetch_health_score_history(session, play_run.account_id),
         target_department=plan.expansion_target_department if plan else None,
         target_owner=plan.expansion_target_owner if plan else None,
         champion_introduction=plan.expansion_champion_introduction if plan else False,

@@ -34,10 +34,8 @@ from core.models import (
     Stakeholder,
     ValueDoc,
 )
-from metrics.derived import departments_live
+from metrics.derived import REVENUE_PER_DEPARTMENT_PROXY, departments_live
 from signals.orchestrator import priority_score
-
-REVENUE_PER_DEPARTMENT = 8000  # context/polst-company-product.md
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -190,7 +188,7 @@ def get_account(account_id: str, db: Session = Depends(get_db)) -> AccountDetail
         .where(Signal.account_id == identity.id, Signal.resolved_at.is_(None))
         .order_by(Signal.fired_at.desc())
     ).scalars().all()
-    account_revenue = departments_live(fetch_campaign_facts(db, identity.id), as_of) * REVENUE_PER_DEPARTMENT
+    account_revenue = departments_live(fetch_campaign_facts(db, identity.id), as_of) * REVENUE_PER_DEPARTMENT_PROXY
     signal_priority = priority_score(account.tier.value, len(open_signals), account_revenue)
     open_signal_rows = [
         SignalOut(

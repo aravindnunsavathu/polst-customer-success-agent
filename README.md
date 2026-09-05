@@ -29,6 +29,8 @@ python -m agents.jobs.run_onboarding_agent    # advances open onboarding play_ru
 python -m agents.jobs.run_second_creator_agent # scans for single-threaded departments, drafts seeding actions
 python -m agents.jobs.run_renewal_agent       # advances open renewal play_runs (T-20 -> T+7) one stage each
 python -m agents.jobs.run_expansion_agent     # re-validates the Play 4 gate in code, drafts the champion case
+python -m agents.jobs.run_portfolio_analyst   # self-paced weekly/bi-weekly/monthly/quarterly reviews
+python -m agents.jobs.run_voc_router          # tags untagged feedback, dedupes across accounts, ranks for Product
 
 # Tests need the schema on the TEST database too (separate from dev — see below):
 DATABASE_URL=$TEST_DATABASE_URL alembic upgrade head
@@ -62,7 +64,7 @@ classifier. Point `model_config.yaml` at `provider: bedrock` once real
 AWS/Bedrock access exists, and review `bedrock.py` against the actual
 response shape before trusting it.
 
-## What's here after Phase 6
+## What's here after Phase 7
 
 - `core/` — canonical SQLAlchemy schema (19 tables) + Alembic migrations.
   Accounts and stakeholders are versioned (valid_from/valid_to); everything
@@ -140,12 +142,36 @@ response shape before trusting it.
   play_run for the new department — "a new department triggers a full
   Play 1 run, not an extension of the existing one." Both agents' jobs:
   `agents/jobs/run_renewal_agent.py`, `agents/jobs/run_expansion_agent.py`.
+  Also the **Portfolio Analyst** (§7): non-customer-facing, "writes to
+  the console, drafts nothing outbound." Four cadenced reviews, each a
+  deterministic aggregation step (band/revenue rollups, cohort-based NRR
+  via `metrics.derived.nrr`) paired with an LLM narrative synthesis —
+  weekly At-risk/Critical, bi-weekly Watch, monthly NRR + portfolio
+  snapshot for the CEO, and quarterly calibration input. Self-paced:
+  `agents/jobs/run_portfolio_analyst.py` only generates a report once its
+  own cadence has elapsed since the last one of that type, not on every
+  invocation. And the **Voice-of-Customer Router** (§7): classifies any
+  `FeedbackItem` that doesn't already carry a tag (the Decay and Renewal
+  Agents tag their own at creation), dedupes across accounts by tag, and
+  ranks by accounts-affected × revenue — "no side channels, everything
+  routes through this one path." `agents/jobs/run_voc_router.py`.
+  Both write into the shared `portfolio_reports` table via
+  `agents/portfolio_analyst/agent.py` / `agents/voc_router/router.py`.
+- `evals/` — the calibration harness (§10): pure, deterministic functions
+  (same discipline as `/metrics` — no network/DB/LLM) computing hit rate,
+  false alarm rate, median lead time, and per-event retrospective
+  look-back ("what did the model say two quarters before this account
+  churned/decayed/expanded"), fed by the Portfolio Analyst's quarterly
+  calibration_input report.
 - `prompts/` — versioned prompt templates (never inline strings):
   `decay_cause_classification.md`, `decay_outreach_creator.md`,
   `onboarding_kickoff_brief.md`, `onboarding_success_criteria.md`,
   `onboarding_value_confirmation.md`, `second_creator_seeding.md`,
   `renewal_value_review.md`, `renewal_growth_proposal.md`,
-  `renewal_objection_check.md`, `expansion_champion_case.md`.
+  `renewal_objection_check.md`, `expansion_champion_case.md`,
+  `portfolio_at_risk_critical_review.md`, `portfolio_watch_review.md`,
+  `portfolio_monthly_ceo_snapshot.md`, `portfolio_calibration_input.md`,
+  `voc_tag_classification.md`, `voc_ranked_list_summary.md`.
 - `seed/` — the synthetic portfolio generator (§13): 8 scenarios × 5
   accounts = 40, deterministic given (seed, as_of).
 - `ingest/` — the `SourceAdapter` interface, a fixture-backed reference
@@ -153,13 +179,17 @@ response shape before trusting it.
   job.
 - `api/` — FastAPI service. Read-only: `GET /accounts`, `GET /accounts/{id}`
   (open signals, play history), `GET /signals` (the portfolio-wide
-  worklist, sorted by priority). Two write endpoints for the approval
+  worklist, sorted by priority), `GET /reports` (optional `?type=`) and
+  `GET /reports/{id}` (the Portfolio Analyst's four reviews + the VoC
+  Router's ranked list). Two write endpoints for the approval
   queue: `POST /actions/{id}/approve`, `POST /actions/{id}/reject`
   (mandatory structured reason) — now genuinely populated by the Decay
   Agent, not just proven against fixtures.
 - `console/` — Next.js 16 (App Router, TypeScript, Tailwind), no design
   flourish per §8: Portfolio, Account detail (+ open signals, play
-  history), Signals worklist, Approval Queue.
+  history), Signals worklist, Approval Queue. Unchanged since Phase 3 —
+  see Known scope decisions on why Phase 7's Play log and Calibration
+  screens are API-only for now.
 - `infra/` — Terraform for Phase 0 (see `infra/README.md`), authored but
   not applied.
 
@@ -332,3 +362,66 @@ response shape before trusting it.
   condition could never be true against real data. Found while writing
   `tests/agents/test_onboarding_agent.py`'s exit-test-passes case, not
   by manual smoke testing.
+- **Fixed `health_scores.scored_at` to derive its date from `as_of`,
+  not wall-clock `datetime.now()`.** The job already accepted `as_of`
+  for computing the score itself, but stamped every row with real "now"
+  regardless — a backfill run scoring a historical date would have every
+  row lie about which date it represents, making "what did the model say
+  two quarters ago" (§10's own Phase 7 demo criterion) unanswerable by
+  querying `scored_at`. The time-of-day component still comes from real
+  wall-clock so repeated same-day runs order predictably; only the date
+  is forced to `as_of`. Found while building the calibration harness,
+  before writing any of its tests — a backfill against the freshly-seeded
+  portfolio produced 12 identical `scored_at` values until this was
+  fixed.
+- **The Portfolio Analyst's 5 outputs share one `portfolio_reports`
+  table** (`report_type` discriminator: 4 Portfolio Analyst cadences +
+  the VoC Router's ranked list) rather than five near-identical tables —
+  all five are the same shape: deterministic `data`, optional LLM
+  `narrative`, a period, read-only.
+- **NRR is cohort-based, matching doc 01's own definition exactly**
+  ("revenue from prior-period cohort in current period ÷ revenue from
+  that cohort in prior period") — the monthly snapshot's NRR figure only
+  sums accounts present in *both* periods; new logos are reported
+  separately (`new_logos_count`) and never inflate the NRR number, per
+  the prompt's explicit hard rule against praising raw revenue growth as
+  retention.
+- **Revenue is the same `departments_live × $8,000/mo` proxy already
+  used by the API's priority scoring** (BUILD-PROMPT.md has no real
+  billing integration yet) — pulled out of `api/routers/accounts.py`
+  into `metrics.derived.REVENUE_PER_DEPARTMENT_PROXY` so the Portfolio
+  Analyst, the VoC Router, and both API routers share one constant
+  instead of three copies of the same magic number.
+- **Calibration events reuse the exact `volume_ratio_90d` formula**
+  the health model's volume-trajectory dimension and the decay trigger
+  already use — "churned/decayed >30%/expanded >30%" is that same ratio
+  crossing a wider threshold (≤0.70 / ==0.0 / ≥1.30) than the 0.85 decay
+  trigger, not a separately-defined metric requiring its own formula.
+- **False alarm rate needs play_run data, not just health-score
+  history** — "recovered with no intervention" is checked by looking for
+  any `play_run` opened during a risk episode's window, which is a DB
+  query (`agents/jobs/run_portfolio_analyst.py`), not something the pure
+  `evals/calibration.py` functions can determine on their own from
+  banding history alone.
+- **Naming the missing signal behind a calibration surprise stays a
+  human step**, per doc 02 §7 ("for every surprise, name the signal that
+  would have caught it"). `evals/calibration.py` surfaces *which* events
+  were surprises (not flagged a quarter ahead); the calibration prompt is
+  explicitly instructed not to invent what the missing signal was.
+- **No new console pages this phase** (Play log, Calibration), matching
+  the precedent Phases 4-6 already set — the console stayed at its
+  Phase 3 shape while three phases of agents shipped behind read-only API
+  endpoints instead. `GET /reports` exists so a future console screen is
+  a pure frontend exercise, not a backend one.
+- **The golden scenario eval suite runs against real seed-generated data
+  through a real test-DB round trip** (`tests/evals/test_golden_scenarios.py`),
+  not hand-rolled fixtures — it inserts one of the actual
+  `seed/scenarios.py` generators' output via `write_portfolio` and
+  exercises the real `core/jobs/fetch.py` conversion path, since the
+  point of a regression suite that runs "on every prompt change" (§10)
+  is catching a break in the integration path, not just the pure logic
+  underneath it. The expansion-gate near-miss test is the one exception
+  that hand-supplies a synthetic health-score history alongside the real
+  scenario data — a fresh scenario insert has no scoring history yet,
+  and the test needs to isolate exactly one failing condition rather
+  than also failing on missing history.

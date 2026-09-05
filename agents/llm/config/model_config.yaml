@@ -34,3 +34,9 @@ agents:
   expansion_drafting:
     provider: heuristic
     model: heuristic-v1
+  portfolio_analyst_synthesis:
+    provider: heuristic
+    model: heuristic-v1
+  voc_tagging:
+    provider: heuristic
+    model: heuristic-v1

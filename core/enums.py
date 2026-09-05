@@ -76,6 +76,19 @@ class ActionStatus(str, enum.Enum):
     EXECUTED = "executed"
 
 
+class ReportType(str, enum.Enum):
+    """Portfolio Analyst's four cadenced outputs (BUILD-PROMPT.md §7) plus
+    the VoC Router's one — all "write to the console, draft nothing
+    outbound," so they share one table rather than five near-identical
+    ones."""
+
+    AT_RISK_CRITICAL_REVIEW = "at_risk_critical_review"  # weekly
+    WATCH_REVIEW = "watch_review"  # bi-weekly
+    MONTHLY_CEO_SNAPSHOT = "monthly_ceo_snapshot"  # monthly — NRR roll-up + portfolio snapshot
+    CALIBRATION_INPUT = "calibration_input"  # quarterly
+    VOC_RANKED_LIST = "voc_ranked_list"
+
+
 class RejectionReasonCategory(str, enum.Enum):
     """Structured per BUILD-PROMPT.md §8: rejection reasons are training data."""
 

@@ -11,12 +11,10 @@ from api.schemas import SignalOut
 from core.db import get_db
 from core.jobs.fetch import fetch_campaign_facts
 from core.models import Account, Signal
-from metrics.derived import departments_live
+from metrics.derived import REVENUE_PER_DEPARTMENT_PROXY, departments_live
 from signals.orchestrator import priority_score
 
 router = APIRouter(prefix="/signals", tags=["signals"])
-
-REVENUE_PER_DEPARTMENT = 8000  # context/polst-company-product.md
 
 
 @router.get("", response_model=list[SignalOut])
@@ -38,7 +36,7 @@ def list_open_signals(db: Session = Depends(get_db)) -> list[SignalOut]:
     for account_id, group in by_account.items():
         account = group["account"]
         campaigns = fetch_campaign_facts(db, account_id)
-        revenue = departments_live(campaigns, date.today()) * REVENUE_PER_DEPARTMENT
+        revenue = departments_live(campaigns, date.today()) * REVENUE_PER_DEPARTMENT_PROXY
         score = priority_score(account.tier.value, len(group["signals"]), revenue)
         for signal in group["signals"]:
             out.append(

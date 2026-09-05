@@ -4,11 +4,12 @@ the bridge between canonical rows and metrics'/signals' pure dataclasses
 is defined exactly once."""
 
 import uuid
+from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.models import Account, Campaign, Department, Stakeholder, User, ValueDoc
+from core.models import Account, Campaign, Department, HealthScore, Stakeholder, User, ValueDoc
 from metrics.types import AccountContext, CampaignFact, StakeholderFact, ValueDocFact
 from signals.types import DepartmentFact, UserFact
 
@@ -64,6 +65,13 @@ def fetch_stakeholder_facts(session: Session, account_id: uuid.UUID) -> list[Sta
 def fetch_department_facts(session: Session, account_id: uuid.UUID) -> list[DepartmentFact]:
     departments = session.execute(select(Department).where(Department.account_id == account_id)).scalars().all()
     return [DepartmentFact(id=str(d.id), created_at=d.created_at, name=d.name) for d in departments]
+
+
+def fetch_health_score_history(session: Session, account_id: uuid.UUID) -> list[tuple[date, str | None]]:
+    rows = session.execute(
+        select(HealthScore.scored_at, HealthScore.band).where(HealthScore.account_id == account_id)
+    ).all()
+    return [(scored_at.date(), band.value if band else None) for scored_at, band in rows]
 
 
 def fetch_user_facts(session: Session, account_id: uuid.UUID) -> list[UserFact]:

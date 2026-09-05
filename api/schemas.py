@@ -138,3 +138,13 @@ class AccountDetail(BaseModel):
     account_plan: AccountPlanOut  # always present — missing objective is a flag, not a null
     open_signals: list[SignalOut]
     play_runs: list[PlayRunOut]
+
+
+class PortfolioReportOut(BaseModel):
+    id: str
+    report_type: str
+    period_start: date
+    period_end: date
+    generated_at: datetime
+    data: dict
+    narrative: str | None
