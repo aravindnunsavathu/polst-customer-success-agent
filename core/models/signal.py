@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.db import Base
@@ -24,6 +25,12 @@ class Signal(Base, UUIDPrimaryKey, CreatedAtMixin):
     severity: Mapped[SignalSeverity] = mapped_column(
         pg_enum(SignalSeverity, "signal_severity"), nullable=False
     )
+    # Why this fired — the evidence, not agent-generated prose. Lets the
+    # console show "why" without a human having to re-derive it from raw
+    # campaign data (BUILD-PROMPT.md §2.3's reconstructibility principle,
+    # applied to a trigger rather than an agent action).
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     fired_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )

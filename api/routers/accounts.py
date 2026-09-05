@@ -15,10 +15,13 @@ from api.schemas import (
     AccountSummary,
     DepartmentVolumeOut,
     HealthScoreSummary,
+    PlayRunOut,
+    SignalOut,
     StakeholderOut,
     ValueDocOut,
 )
 from core.db import get_db
+from core.jobs.fetch import fetch_campaign_facts
 from core.models import (
     Account,
     AccountIdentity,
@@ -26,9 +29,15 @@ from core.models import (
     Campaign,
     Department,
     HealthScore,
+    PlayRun,
+    Signal,
     Stakeholder,
     ValueDoc,
 )
+from metrics.derived import departments_live
+from signals.orchestrator import priority_score
+
+REVENUE_PER_DEPARTMENT = 8000  # context/polst-company-product.md
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -74,9 +83,19 @@ def _latest_two_scores(db: Session, account_id) -> list[HealthScore]:
     )
 
 
+def _open_signal_counts(db: Session) -> dict:
+    from sqlalchemy import func
+
+    rows = db.execute(
+        select(Signal.account_id, func.count(Signal.id)).where(Signal.resolved_at.is_(None)).group_by(Signal.account_id)
+    ).all()
+    return {account_id: count for account_id, count in rows}
+
+
 @router.get("", response_model=list[AccountSummary])
 def list_accounts(db: Session = Depends(get_db)) -> list[AccountSummary]:
     accounts = db.execute(select(Account).where(Account.valid_to.is_(None))).scalars().all()
+    open_counts = _open_signal_counts(db)
     out = []
     for account in accounts:
         scores = _latest_two_scores(db, account.account_id)
@@ -92,6 +111,7 @@ def list_accounts(db: Session = Depends(get_db)) -> list[AccountSummary]:
                 latest_score=_health_score_summary(latest) if latest else None,
                 trend=_trend(latest, previous),
                 next_review_date=account.next_review_date,
+                open_signal_count=open_counts.get(account.account_id, 0),
             )
         )
     return out
@@ -165,6 +185,34 @@ def get_account(account_id: str, db: Session = Depends(get_db)) -> AccountDetail
         select(ValueDoc).where(ValueDoc.account_id == identity.id).order_by(ValueDoc.created_at.desc())
     ).scalars().all()
 
+    open_signals = db.execute(
+        select(Signal)
+        .where(Signal.account_id == identity.id, Signal.resolved_at.is_(None))
+        .order_by(Signal.fired_at.desc())
+    ).scalars().all()
+    account_revenue = departments_live(fetch_campaign_facts(db, identity.id), as_of) * REVENUE_PER_DEPARTMENT
+    signal_priority = priority_score(account.tier.value, len(open_signals), account_revenue)
+    open_signal_rows = [
+        SignalOut(
+            id=str(s.id), account_id=str(identity.id), account_name=account.name,
+            type=s.type, reason=s.reason, evidence=s.evidence or {},
+            severity=s.severity.value, fired_at=s.fired_at, sla_due_at=s.sla_due_at,
+            priority_score=signal_priority,
+        )
+        for s in open_signals
+    ]
+
+    play_runs = db.execute(
+        select(PlayRun).where(PlayRun.account_id == identity.id).order_by(PlayRun.opened_at.desc())
+    ).scalars().all()
+    play_run_rows = [
+        PlayRunOut(
+            id=str(p.id), play=p.play.value, opened_at=p.opened_at, closed_at=p.closed_at,
+            outcome=p.outcome, cause_classification=p.cause_classification,
+        )
+        for p in play_runs
+    ]
+
     plan = db.execute(
         select(AccountPlan)
         .where(AccountPlan.account_id == identity.id)
@@ -214,4 +262,6 @@ def get_account(account_id: str, db: Session = Depends(get_db)) -> AccountDetail
             top_opportunity=plan.top_opportunity if plan else None,
             last_refreshed=plan.last_refreshed if plan else None,
         ),
+        open_signals=open_signal_rows,
+        play_runs=play_run_rows,
     )

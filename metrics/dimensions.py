@@ -55,22 +55,34 @@ def score_volume_trajectory(
 
 
 def seasonality_flag(campaigns: list[CampaignFact], as_of: date, config: HealthModelConfig) -> dict | None:
-    """Returns diagnostic info if >=12 months of history exist, else None.
-    Never changes the score itself — surfaces context (doc 02 §8) so a
-    human can tell a real decline from an expected seasonal dip."""
+    """Returns diagnostic info if there's enough real history to trust a
+    YoY comparison, else None. Never changes the score itself — surfaces
+    context (doc 02 §8) so a human can tell a real decline from an
+    expected seasonal dip.
+
+    Eligibility requires data actually covering the whole prior-year
+    window, not just "the earliest campaign is roughly 12 months old" —
+    an account whose data starts 13 months back but whose prior-year
+    window needs [454,365] days ago only has a few days of real overlap
+    at the near edge. That produced a real bug: a handful of campaigns
+    in a mostly-empty window gave a yoy_ratio in the double digits,
+    which silently suppressed a genuine decay signal (see
+    signals/triggers.py and tests/signals/)."""
     billable = [c for c in campaigns if c.billable]
     if not billable:
         return None
     earliest = min(c.created_at.date() for c in billable)
-    months_of_history = (as_of.year - earliest.year) * 12 + (as_of.month - earliest.month)
-    if months_of_history < config.seasonality.min_months_history_for_yoy:
-        return None
+
+    one_year_ago = as_of - timedelta(days=365)
+    prior_year_start = one_year_ago - timedelta(days=89)
+    if earliest > prior_year_start:
+        return None  # data doesn't reach back far enough to cover the whole comparison window
 
     current = billable_in_window(campaigns, as_of - timedelta(days=89), as_of)
-    one_year_ago = as_of - timedelta(days=365)
-    prior_year = billable_in_window(campaigns, one_year_ago - timedelta(days=89), one_year_ago)
-    if not prior_year:
-        return None
+    prior_year = billable_in_window(campaigns, prior_year_start, one_year_ago)
+    min_sample = config.seasonality.min_campaigns_per_window_for_yoy
+    if len(prior_year) < min_sample or len(current) < min_sample:
+        return None  # too few campaigns in one of the windows for the ratio to mean anything
 
     yoy_ratio = len(current) / len(prior_year)
     sequential = volume_ratio_90d(campaigns, as_of)

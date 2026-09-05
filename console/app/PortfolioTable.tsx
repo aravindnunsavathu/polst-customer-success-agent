@@ -83,6 +83,7 @@ export default function PortfolioTable({ accounts }: { accounts: AccountSummary[
               Score
             </th>
             <th className="py-2">Trend</th>
+            <th className="py-2">Open signals</th>
             <th className="py-2">Next review</th>
           </tr>
         </thead>
@@ -110,6 +111,15 @@ export default function PortfolioTable({ accounts }: { accounts: AccountSummary[
                 <td className="py-2">{a.latest_score?.final_score?.toFixed(1) ?? "—"}</td>
                 <td className="py-2">
                   {a.trend === "up" ? "↑" : a.trend === "down" ? "↓" : a.trend === "flat" ? "→" : "—"}
+                </td>
+                <td className="py-2">
+                  {a.open_signal_count > 0 ? (
+                    <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
+                      {a.open_signal_count}
+                    </span>
+                  ) : (
+                    "—"
+                  )}
                 </td>
                 <td className="py-2">{a.next_review_date ?? "—"}</td>
               </tr>

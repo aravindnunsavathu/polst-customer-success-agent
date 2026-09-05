@@ -13,68 +13,26 @@ from sqlalchemy.orm import Session
 
 from core.db import SessionLocal
 from core.enums import HealthBand
-from core.models import Account, Campaign, HealthScore, Stakeholder, ValueDoc
+from core.jobs.fetch import (
+    account_context,
+    fetch_campaign_facts,
+    fetch_stakeholder_facts,
+    fetch_value_doc_facts,
+)
+from core.models import Account, HealthScore
 from metrics.config import HealthModelConfig, default_config
 from metrics.health import compute_health_score
-from metrics.types import AccountContext, CampaignFact, StakeholderFact, ValueDocFact
-
-
-def _account_context(account: Account) -> AccountContext:
-    return AccountContext(
-        contract_start=account.contract_start,
-        commercial_model=account.commercial_model.value,
-        committed_volume=account.committed_volume,
-        commitment_end=account.commitment_end,
-        potential_departments=account.potential_departments,
-    )
 
 
 def score_account(
     session: Session, account: Account, as_of: date, config: HealthModelConfig
 ) -> HealthScore:
-    campaigns = session.execute(
-        select(Campaign).where(Campaign.account_id == account.account_id)
-    ).scalars().all()
-    campaign_facts = [
-        CampaignFact(
-            id=str(c.id),
-            department_id=str(c.department_id),
-            creator_id=str(c.creator_user_id),
-            created_at=c.created_at,
-            launched_at=c.launched_at,
-            billable=c.billable,
-        )
-        for c in campaigns
-    ]
-
-    value_docs = session.execute(
-        select(ValueDoc).where(ValueDoc.account_id == account.account_id)
-    ).scalars().all()
-    value_doc_facts = [
-        ValueDocFact(created_at=v.created_at, confirmed_at=v.confirmed_at) for v in value_docs
-    ]
-
-    stakeholders = session.execute(
-        select(Stakeholder).where(
-            Stakeholder.account_id == account.account_id, Stakeholder.valid_to.is_(None)
-        )
-    ).scalars().all()
-    stakeholder_facts = [
-        StakeholderFact(
-            type=s.type.value,
-            last_contact_at=s.last_contact_at,
-            departed_at=s.departed_at,
-            reference_willing=s.reference_willing,
-        )
-        for s in stakeholders
-    ]
-
     result = compute_health_score(
-        campaigns=campaign_facts,
-        value_docs=value_doc_facts,
-        stakeholders=stakeholder_facts,
+        campaigns=fetch_campaign_facts(session, account.account_id),
+        value_docs=fetch_value_doc_facts(session, account.account_id),
+        stakeholders=fetch_stakeholder_facts(session, account.account_id),
         escalations=[],  # no escalation/ticket data source exists yet
-        account=_account_context(account),
+        account=account_context(account),
         as_of=as_of,
         config=config,
     )

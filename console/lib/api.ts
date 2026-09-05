@@ -25,6 +25,44 @@ export type AccountSummary = {
   latest_score: HealthScoreSummary | null;
   trend: "up" | "down" | "flat" | null;
   next_review_date: string | null;
+  open_signal_count: number;
+};
+
+export type SignalOut = {
+  id: string;
+  account_id: string;
+  account_name: string;
+  type: string;
+  reason: string;
+  evidence: Record<string, unknown>;
+  severity: string;
+  fired_at: string;
+  sla_due_at: string | null;
+  priority_score: number;
+};
+
+export type PlayRunOut = {
+  id: string;
+  play: string;
+  opened_at: string;
+  closed_at: string | null;
+  outcome: string | null;
+  cause_classification: string | null;
+};
+
+export type ActionOut = {
+  id: string;
+  play_run_id: string | null;
+  agent: string;
+  type: string;
+  payload: Record<string, unknown>;
+  reasoning: string;
+  autonomy_level: string;
+  status: string;
+  approved_by: string | null;
+  rejection_reason_category: string | null;
+  rejection_reason_detail: string | null;
+  created_at: string;
 };
 
 export type StakeholderOut = {
@@ -75,6 +113,8 @@ export type AccountDetail = AccountSummary & {
   departments: DepartmentVolumeOut[];
   value_docs: ValueDocOut[];
   account_plan: AccountPlanOut;
+  open_signals: SignalOut[];
+  play_runs: PlayRunOut[];
 };
 
 export async function fetchPortfolio(): Promise<AccountSummary[]> {
@@ -86,5 +126,19 @@ export async function fetchPortfolio(): Promise<AccountSummary[]> {
 export async function fetchAccount(id: string): Promise<AccountDetail> {
   const res = await fetch(`${API_URL}/accounts/${id}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to fetch account ${id}: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchSignals(): Promise<SignalOut[]> {
+  const res = await fetch(`${API_URL}/signals`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Failed to fetch signals: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchActions(status?: string): Promise<ActionOut[]> {
+  const url = new URL(`${API_URL}/actions`);
+  if (status) url.searchParams.set("status", status);
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Failed to fetch actions: ${res.status}`);
   return res.json();
 }

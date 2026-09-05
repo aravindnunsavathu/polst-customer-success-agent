@@ -164,16 +164,57 @@ def healthy_growth(rng, faker, as_of: date, index: int) -> list:
 
 
 def seasonal_dip(rng, faker, as_of: date, index: int) -> list:
+    # Built with explicit day offsets rather than _build_common's
+    # per-calendar-month pattern: metrics.dimensions.seasonality_flag
+    # compares against an EXACT 90-day window ending 365 days ago, and a
+    # whole-month bucket a year back only partially overlaps that window
+    # (a real bug found when the decay trigger fired anyway on this
+    # scenario against real seeded data — see signals/triggers.py). Offsets
+    # here mirror tests/metrics/test_golden_scores.py's seasonality test,
+    # which does align exactly, so this scenario now actually exercises
+    # the suppression path instead of silently missing it.
     name = f"{faker.company()} — Seasonal"
     contract_start = as_of - timedelta(days=650)
-    pattern = _pattern_seasonal_dip(10, 4, MONTHS_OF_HISTORY + 1)
-    identity, account, objects = _build_common(
-        rng, name, contract_start, Tier.T2, Quadrant.PROTECT,
-        department_names=["Menu Innovation"],
-        creators_per_department=2,
-        monthly_pattern_by_dept=[pattern],
-        as_of=as_of,
+    identity, account = builder.make_account(
+        rng, name=name, contract_start=contract_start, tier=Tier.T2, quadrant=Quadrant.PROTECT,
+        potential_departments=2, potential_creators_per_dept=3, potential_campaigns_per_creator=6,
     )
+    dept_created_at = datetime.combine(contract_start, time(9, 0))
+    department = builder.make_department(identity.id, "Menu Innovation", dept_created_at)
+    creators = [
+        builder.make_user(identity.id, department.id, dept_created_at + timedelta(days=c),
+                           last_active_at=datetime.combine(as_of, time(9, 0)))
+        for c in range(2)
+    ]
+    creator_ids = [u.id for u in creators]
+
+    offsets = (
+        list(range(0, 90, 15))          # last 90d: 6 campaigns (the dip)
+        + list(range(92, 182, 5))       # prior 90d: 18 campaigns (the normal quarter)
+        + [365 + d for d in range(0, 90, 15)]  # same 90d window one year ago: also 6 (the same dip)
+        + list(range(185, 360, 20))     # modest off-season baseline, for realism only
+        + [500]                          # pushes earliest-campaign history past the 12-month threshold
+    )
+    campaigns = []
+    for i, days_ago in enumerate(offsets):
+        created_at = datetime.combine(as_of - timedelta(days=days_ago), time(hour=rng.randrange(8, 18)))
+        campaigns.append(builder.make_campaign_on(
+            identity.id, department.id, creator_ids[i % len(creator_ids)], created_at, rng
+        ))
+
+    earliest = min(c.created_at for c in campaigns)
+    department.first_campaign_at = earliest
+    # This scenario's campaigns intentionally reach back further (500
+    # days, for the YoY comparison) than the standard MONTHS_OF_HISTORY
+    # window — billing_periods must cover that full range too, or months
+    # with real campaigns but no billing_period row look like a
+    # reconciliation discrepancy (caught by ingest.reconciliation, which
+    # is exactly what it's for).
+    months_back = (as_of.year - earliest.year) * 12 + (as_of.month - earliest.month)
+    months = builder.month_starts(as_of, months_back)
+    billing_periods = builder.billing_periods_from_campaigns(identity.id, campaigns, months)
+
+    objects = [identity, account, department, *creators, *campaigns, *billing_periods]
     objects.append(builder.make_stakeholder(
         identity.id, faker.name(), StakeholderType.ECONOMIC_BUYER,
         relationship_strength=RelationshipStrength.STRONG,

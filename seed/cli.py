@@ -17,6 +17,7 @@ from core.models import (
     BillingPeriod,
     Campaign,
     CampaignOutcome,
+    CoverageElevation,
     Department,
     FeedbackItem,
     HealthScore,
@@ -33,8 +34,8 @@ from seed.generator import generate_portfolio
 # Child-to-parent order matters for readability only — TRUNCATE ... CASCADE
 # resolves the actual dependency order regardless.
 ALL_TABLES = [
-    Action, PlayRun, Signal, HealthScore, FeedbackItem, ValueDoc, AccountPlan,
-    Stakeholder, ProductError, UserEvent, CampaignOutcome, Campaign,
+    Action, PlayRun, Signal, CoverageElevation, HealthScore, FeedbackItem, ValueDoc,
+    AccountPlan, Stakeholder, ProductError, UserEvent, CampaignOutcome, Campaign,
     BillingPeriod, User, Department, Account, AccountIdentity,
 ]
 

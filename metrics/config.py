@@ -58,8 +58,8 @@ class OnboardingTarget(BaseModel):
 
 
 class Seasonality(BaseModel):
-    min_months_history_for_yoy: int
     divergence_threshold: float
+    min_campaigns_per_window_for_yoy: int
 
 
 class RepeatRateRubric(BaseModel):

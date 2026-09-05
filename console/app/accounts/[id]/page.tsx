@@ -16,6 +16,21 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
         {account.tier} · {account.quadrant} · {account.commercial_model}
       </p>
 
+      {account.open_signals.length > 0 && (
+        <section className="mb-8 rounded border border-red-200 bg-red-50 p-4">
+          <h2 className="mb-2 font-semibold text-red-800">
+            Open signals ({account.open_signals.length})
+          </h2>
+          <ul className="space-y-1 text-sm text-red-900">
+            {account.open_signals.map((s) => (
+              <li key={s.id}>
+                <span className="font-medium">{s.type.replace(/_/g, " ")}</span> — {s.reason}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section className="mb-8 rounded border p-4">
         <h2 className="mb-2 font-semibold">The business result they bought Polst to achieve</h2>
         {plan.stated_objective_missing ? (
@@ -130,6 +145,41 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
                 <td className="py-2">{d.campaigns_prior_90d}</td>
               </tr>
             ))}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="mb-2 font-semibold">Play history</h2>
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b text-left">
+              <th className="py-2">Play</th>
+              <th className="py-2">Opened</th>
+              <th className="py-2">Closed</th>
+              <th className="py-2">Outcome</th>
+              <th className="py-2">Cause</th>
+            </tr>
+          </thead>
+          <tbody>
+            {account.play_runs.map((p) => (
+              <tr key={p.id} className="border-b">
+                <td className="py-2">{p.play}</td>
+                <td className="py-2">{new Date(p.opened_at).toLocaleDateString()}</td>
+                <td className="py-2">
+                  {p.closed_at ? new Date(p.closed_at).toLocaleDateString() : "open"}
+                </td>
+                <td className="py-2">{p.outcome ?? "—"}</td>
+                <td className="py-2">{p.cause_classification ?? "—"}</td>
+              </tr>
+            ))}
+            {account.play_runs.length === 0 && (
+              <tr>
+                <td colSpan={5} className="py-2 text-gray-400">
+                  No plays run yet
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </section>

@@ -66,12 +66,19 @@ onboarding_target:
   target_campaigns_by_day_90: 6
 
 # Doc 02 §8: year-over-year comparison flags alongside the sequential one
-# once an account has this much history. divergence_threshold is how far
-# apart the sequential and YoY ratios must be before we flag the
-# sequential number as a likely seasonal false alarm.
+# once real data covers the whole prior-year comparison window (see
+# metrics/dimensions.py's seasonality_flag — eligibility is computed from
+# actual data coverage, not a config'd month count). divergence_threshold
+# is how far apart the sequential and YoY ratios must be before we flag
+# the sequential number as a likely seasonal false alarm.
 seasonality:
-  min_months_history_for_yoy: 12
   divergence_threshold: 0.15
+  # A YoY ratio computed from a handful of campaigns is noise, not
+  # signal — a real account found this the hard way: a 3-campaign "prior
+  # year" window produced a yoy_ratio of 24x and silently suppressed a
+  # genuine decay trigger. Below this many campaigns in EITHER window,
+  # don't trust the comparison enough to flag anything.
+  min_campaigns_per_window_for_yoy: 4
 
 # No campaign quality metric is confirmed yet (BUILD-PROMPT.md §16.1) —
 # the percentile path is built but stays behind use_percentile until

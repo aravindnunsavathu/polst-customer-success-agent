@@ -157,6 +157,32 @@ def spread_campaigns_in_month(
     return campaigns
 
 
+def make_campaign_on(
+    account_id,
+    department_id,
+    creator_id,
+    created_at: datetime,
+    rng,
+    abandonment_rate: float = 0.08,
+) -> Campaign:
+    """A single campaign at an exact timestamp — for scenarios that need
+    precise day-level alignment (e.g. seasonal_dip's year-over-year
+    comparison) rather than spread_campaigns_in_month's whole-month
+    random spread."""
+    abandoned = rng.random() < abandonment_rate
+    launched_at = None if abandoned else created_at + timedelta(hours=rng.randrange(1, 72))
+    return Campaign(
+        id=uuid.uuid4(),
+        account_id=account_id,
+        department_id=department_id,
+        creator_user_id=creator_id,
+        created_at=created_at,
+        launched_at=launched_at,
+        template_type=rng.choice(TEMPLATE_TYPES),
+        billable=True,
+    )
+
+
 def billing_periods_from_campaigns(account_id, campaigns: list[Campaign], months: list[date]) -> list[BillingPeriod]:
     counts = Counter(c.created_at.date().replace(day=1) for c in campaigns if c.billable)
     return [

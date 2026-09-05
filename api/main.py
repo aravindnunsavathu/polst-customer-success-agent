@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routers import accounts
+from api.routers import accounts, actions, signals
 
 app = FastAPI(title="Polst CS Agent Platform")
 
@@ -11,11 +11,13 @@ app = FastAPI(title="Polst CS Agent Platform")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
 app.include_router(accounts.router)
+app.include_router(signals.router)
+app.include_router(actions.router)
 
 
 @app.get("/")

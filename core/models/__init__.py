@@ -1,5 +1,6 @@
 from core.models.account import Account, AccountIdentity, Department
 from core.models.campaign import BillingPeriod, Campaign, CampaignOutcome
+from core.models.coverage import CoverageElevation
 from core.models.events import ProductError, UserEvent
 from core.models.feedback import FeedbackItem
 from core.models.health import HealthScore
@@ -16,6 +17,7 @@ __all__ = [
     "Campaign",
     "CampaignOutcome",
     "BillingPeriod",
+    "CoverageElevation",
     "UserEvent",
     "ProductError",
     "Stakeholder",
