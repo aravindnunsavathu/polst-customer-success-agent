@@ -1,0 +1,18 @@
+# Per-agent model choice (BUILD-PROMPT.md §11a: "Model choice per agent
+# in Parameter Store config, not global"). Locally this file plays that
+# role; on AWS it's mirrored into Parameter Store by a deploy step, same
+# pattern as metrics/config/health_model_v1.yaml.
+#
+# provider: "heuristic" | "bedrock" — "heuristic" needs no credentials
+# and is what every agent uses until real Bedrock access is configured.
+default:
+  provider: heuristic
+  model: heuristic-v1
+
+agents:
+  decay_cause_classification:
+    provider: heuristic
+    model: heuristic-v1
+  decay_outreach_drafting:
+    provider: heuristic
+    model: heuristic-v1

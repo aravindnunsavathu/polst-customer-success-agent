@@ -1,0 +1,45 @@
+# BUILD-PROMPT.md §9, verbatim. "Human" and "Human writes" in the source
+# table both mean "no agent drafting, a human does this entirely" and
+# map to the same core.enums.AutonomyLevel.HUMAN_WRITES — there's no
+# separate enum value for the wording difference.
+#
+# v1 cap (§9): "v1 ships with everything at Draft or below. Auto-SEND
+# unlocks per action type only after 30 approved-without-edit drafts."
+# The word "auto-send" is doing real work here — §2.6's human-approval
+# rule is specifically about what's CUSTOMER-FACING. score_detect_alert
+# and internal_brief are Auto in the matrix and stay Auto in v1; they
+# never reach a customer, so there's nothing to gate. customer_facing:
+# true is what agents/autonomy.py actually caps and tracks promotion for.
+promotion_threshold_approved_without_edit: 30
+
+matrix:
+  score_detect_alert:
+    customer_facing: false
+    tiers: {T1: auto, T2: auto, T3: auto}
+  internal_brief:
+    customer_facing: false
+    tiers: {T1: auto, T2: auto, T3: auto}
+  onboarding_sequence:
+    customer_facing: true
+    tiers: {T1: draft, T2: auto, T3: auto}
+  routine_check_in:
+    customer_facing: true
+    tiers: {T1: draft, T2: draft, T3: auto}
+  decay_outreach_creator:
+    customer_facing: true
+    tiers: {T1: draft, T2: draft, T3: auto}
+  decay_outreach_buyer:
+    customer_facing: true
+    tiers: {T1: human_writes, T2: draft, T3: draft}
+  value_confirmation_request:
+    customer_facing: true
+    tiers: {T1: human_writes, T2: draft, T3: draft}
+  renewal_commercial_proposal:
+    customer_facing: true
+    tiers: {T1: human_writes, T2: human_writes, T3: draft}
+  exec_to_exec_budget_or_displacement:
+    customer_facing: true
+    tiers: {T1: human_writes, T2: never, T3: never}
+  price_or_credits:
+    customer_facing: true
+    tiers: {T1: human_writes, T2: never, T3: never}

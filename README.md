@@ -4,11 +4,12 @@ See `CLAUDE.md` and `BUILD-PROMPT.md` for the full brief, and
 `context/cs-pack/` for the functional spec. This file is just the local
 dev quickstart.
 
-## Local setup (Phase 0 + Phase 1 + Phase 2 + Phase 3)
+## Local setup (Phase 0 through Phase 4)
 
 Everything runs against local Postgres via docker-compose — no AWS
-credentials or network access needed. `/metrics` and `/signals` (outside
-their `jobs/` bridge modules) and `/seed` have zero network/AWS/LLM/DB
+credentials or network access needed. `/metrics`, `/signals`, and
+`/agents` (outside their `jobs/` bridge modules, and outside
+`agents/llm/bedrock.py`) and `/seed` have zero network/AWS/LLM/DB
 dependencies by construction, per BUILD-PROMPT.md §11.
 
 ```bash
@@ -23,6 +24,7 @@ python -m seed.cli --reset    # generate the synthetic 40-account portfolio
 python -m ingest.jobs.reconcile_billing   # should print "clean" against seed data
 python -m core.jobs.score_portfolio       # scores every account, writes health_scores
 python -m signals.jobs.evaluate_triggers  # evaluates §6 triggers, opens signals/play_runs/coverage_elevations
+python -m agents.jobs.run_decay_agent     # diagnoses + classifies open decay play_runs, drafts outreach
 
 # Tests need the schema on the TEST database too (separate from dev — see below):
 DATABASE_URL=$TEST_DATABASE_URL alembic upgrade head
@@ -43,13 +45,26 @@ development). `docker/init-test-db.sql` creates `polst_cs_test`
 automatically on a fresh `docker compose up`; the fixture also refuses to
 run against any URL whose database name doesn't contain "test".
 
-## What's here after Phase 3
+### No real LLM credentials in this environment
+
+Same situation as `/infra`'s Terraform: `agents/llm/bedrock.py` is
+authored against the Bedrock Converse-style API but has never been
+exercised against a live endpoint. Every agent runs today against
+`HeuristicLLMProvider` (`agents/llm/fake.py`) — plain Python rules, no
+network, configured as the default in `agents/llm/config/model_config.yaml`.
+It's good enough to demonstrate the full diagnose → classify → draft
+pipeline end-to-end against the seeded portfolio, but it is not a real
+classifier. Point `model_config.yaml` at `provider: bedrock` once real
+AWS/Bedrock access exists, and review `bedrock.py` against the actual
+response shape before trusting it.
+
+## What's here after Phase 4
 
 - `core/` — canonical SQLAlchemy schema (19 tables) + Alembic migrations.
   Accounts and stakeholders are versioned (valid_from/valid_to); everything
   else is a plain fact/event table. `core/jobs/` holds the nightly jobs
-  allowed to import both `core` and `metrics`/`signals` — `fetch.py`'s
-  Postgres-to-pure-facts converters are shared by both.
+  allowed to import both `core` and `metrics`/`signals`/`agents` —
+  `fetch.py`'s Postgres-to-pure-facts converters are shared across all of them.
 - `metrics/` — the deterministic health-scoring engine (BUILD-PROMPT.md
   §5 / doc 02 §3-5): derived metrics, six dimensions, seven overrides, the
   composite orchestrator, and `metrics/config/health_model_v1.yaml` (every
@@ -62,18 +77,32 @@ run against any URL whose database name doesn't contain "test".
   non-agent orchestrator (dedup, one-play-per-account, priority ranking).
   `signals/jobs/evaluate_triggers.py` is the nightly bridge to Postgres.
   Also zero network/AWS/DB dependency outside `jobs/`.
+- `agents/` — the provider-agnostic `LLMProvider` interface (§11a),
+  the §9 autonomy matrix resolver (with the v1 Draft-cap and
+  30-approved-without-edit promotion path actually computed from `Action`
+  history), the volume-pushing guardrail, and the **Decay Agent**
+  (§7 Play 2): deterministic diagnosis (localize to department/creator,
+  estimate onset date) feeds an LLM cause classification, which branches
+  into a creator-level draft, an internal Product-routing action (also
+  logs a `FeedbackItem` — no side channels, per doc 01), a stricter
+  exec-to-exec action for budget/competitive causes, or — for `seasonal`
+  — a first-class no-intervention outcome that closes the play_run
+  immediately. `agents/jobs/run_decay_agent.py` also closes out
+  play_runs whose 90-day recovery window has elapsed (recovered vs.
+  unrecovered), the play's named metric.
+- `prompts/` — versioned prompt templates (never inline strings):
+  `decay_cause_classification.md`, `decay_outreach_creator.md`.
 - `seed/` — the synthetic portfolio generator (§13): 8 scenarios × 5
   accounts = 40, deterministic given (seed, as_of).
 - `ingest/` — the `SourceAdapter` interface, a fixture-backed reference
   adapter, the shared upsert loader, and the nightly billing reconciliation
   job.
 - `api/` — FastAPI service. Read-only: `GET /accounts`, `GET /accounts/{id}`
-  (now including open signals and play history), `GET /signals` (the
-  portfolio-wide worklist, sorted by priority). Two write endpoints for
-  the approval queue: `POST /actions/{id}/approve`, `POST /actions/{id}/reject`
-  (mandatory structured reason) — no agent populates `actions` yet
-  (Phase 4+), so the queue is legitimately empty against real data; the
-  mechanics are proven in `tests/api/test_actions.py`.
+  (open signals, play history), `GET /signals` (the portfolio-wide
+  worklist, sorted by priority). Two write endpoints for the approval
+  queue: `POST /actions/{id}/approve`, `POST /actions/{id}/reject`
+  (mandatory structured reason) — now genuinely populated by the Decay
+  Agent, not just proven against fixtures.
 - `console/` — Next.js 16 (App Router, TypeScript, Tailwind), no design
   flourish per §8: Portfolio, Account detail (+ open signals, play
   history), Signals worklist, Approval Queue.
@@ -129,3 +158,29 @@ run against any URL whose database name doesn't contain "test".
   confirmed result + addressable department not live) — the full 6-point
   qualification gate is Phase 6's job, enforced in code when the
   Expansion Agent actually runs.
+- **Diagnosis is deterministic Python, not an LLM step.** Localizing
+  decay to a department/creator and estimating an onset date is factual
+  computation from data already in Postgres — only cause classification
+  and outreach drafting go through an LLM, matching §11a's task-class
+  table and the deterministic/judgment split in CLAUDE.md.
+- **The v1 autonomy cap only applies to customer-facing action types.**
+  §9 says "auto-*send*" unlocks after 30 approved-without-edit drafts —
+  `score_detect_alert` and `internal_brief` are Auto for every tier in
+  the matrix and stay Auto in v1, since nothing customer-facing is at
+  stake. `agents/config/autonomy_matrix.yaml` marks each row
+  `customer_facing: true/false` explicitly rather than leaving that
+  distinction implicit.
+- **Cause → contact-level mapping follows doc 06's table, not a generic
+  "buyer outreach."** `person_left`/`never_got_value` → creator-level
+  draft; `product_friction` → internal routing (no customer contact,
+  plus a `FeedbackItem` so it flows through the one VoC intake doc 01
+  insists on); `budget_priority_shift`/`competitive_displacement` → the
+  stricter `exec_to_exec_budget_or_displacement` autonomy row (Never/
+  Never/Human), not the generic "decay outreach — buyer level" row.
+  That generic row exists in the matrix for completeness but nothing in
+  the Decay Agent's cause branching invokes it yet.
+- **A keyword-based guardrail, not an LLM-judged one.** `agents/guardrails.py`
+  checks drafted copy against a literal volume-pushing phrase list —
+  matches CLAUDE.md's "gates enforced in code, not in prompts," but can't
+  catch every rephrasing. A flagged draft is forced to at least `Draft`
+  autonomy regardless of promotion status; it's never silently dropped.
